@@ -1,8 +1,6 @@
 {% extends 'base/layout.html' %}
 
 {% block content%}
-{% include 'navbar.html' %}
-
 <style>
     .home-container{
         display: grid;
@@ -25,12 +23,15 @@
         {% endfor %}
     </div>
     <div>
+        <h4>Rooms Available: {{room_count}}</h4>
         <a href="{% url 'create_room' %}">Create a Room</a>
         <div>
             {% for room in rooms%}
             <div>
+                {% if request.user == room.host %}
                 <a href="{% url 'update_room' room.id %}">Edit Room</a>
                 <a href="{% url 'delete_room' room.id %}">Delete Room</a>
+                {% endif %}
                 <span>@{{room.host.username}}</span>
                 <h5>{{room.id}}--<a href="{% url 'room' room.id %}">{{room.name}}</a>  </h5>
                 <small>{{room.topic.name}}</small>
