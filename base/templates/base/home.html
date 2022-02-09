@@ -1,0 +1,42 @@
+{% extends 'base/layout.html' %}
+
+{% block content%}
+{% include 'navbar.html' %}
+
+<style>
+    .home-container{
+        display: grid;
+        grid-template-columns: 1fr 3fr;
+    }
+</style>
+
+<div class="home-container">
+    <div>
+        <h4>Browse Topics</h4>
+        <hr>
+        <div>
+            <a href="{% url 'home' %}">ALL</a>
+        </div>
+
+        {% for topic in topics %}
+        <div>
+            <a href="{% url 'home' %}?q={{topic.name}}">{{topic.name}}</a>
+        </div>
+        {% endfor %}
+    </div>
+    <div>
+        <a href="{% url 'create_room' %}">Create a Room</a>
+        <div>
+            {% for room in rooms%}
+            <div>
+                <a href="{% url 'update_room' room.id %}">Edit Room</a>
+                <a href="{% url 'delete_room' room.id %}">Delete Room</a>
+                <span>@{{room.host.username}}</span>
+                <h5>{{room.id}}--<a href="{% url 'room' room.id %}">{{room.name}}</a>  </h5>
+                <small>{{room.topic.name}}</small>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock content%}
