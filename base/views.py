@@ -2,10 +2,11 @@ from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 from django.db.models import Q
-from .models import Room, Topic
+from .models import Room, Topic, Message
 from .forms import RoomForm
 # Create your views here.
 # rooms = [
@@ -14,12 +15,13 @@ from .forms import RoomForm
 #     {'id':3, 'name':'Lets learn python Pivot tables, chart.js and apex charts'},
 # ]
 def login_page(request):
+    page='login'
     if request.user.is_authenticated:
         messages.success(request, "User is already Logged in")
         return redirect('home')
-        
+
     if request.method == "POST":
-        username = request.POST.get('username')
+        username = request.POST.get('username').lower()
         password = request.POST.get('password')
 
         try:
@@ -34,11 +36,31 @@ def login_page(request):
         else:
             messages.error(request, 'Invalid Username or Password')
 
-    context = {}
+    context = {'page':page}
     return render(request, 'base/login_register.html', context)
+
 def logout_user(request):
     logout(request)
     return redirect('home')
+
+def register_user(request):
+    page="register"
+    form=UserCreationForm()
+    context={'page':page, 'form':form}
+    if request.method == 'POST':
+        form=UserCreationForm(request.POST)
+        if form.is_valid:
+            user=form.save(commit=False)
+            user.username=user.username.lower()
+            user.save()
+            login(request, user)
+            return redirect('home')
+        else:
+            messages.error(request, 'An error occured')
+            return render(request, 'base/login_register.html', context)
+    
+    return render(request, 'base/login_register.html', context)
+
 
 def home(request):
     q=request.GET.get('q')
@@ -52,14 +74,31 @@ def home(request):
     )
     topics=Topic.objects.all()
     room_count=rooms.count()
+    room_messages = Message.objects.all().filter(
+        Q(room__topic__name__icontains=q)
+    ).order_by('-created')
 
-    context={'rooms':rooms, 'topics':topics, 'room_count':room_count}
+    context={'rooms':rooms, 'topics':topics, 'room_count':room_count, 'room_messages':room_messages}
     return render(request, 'base/home.html', context)
+
 
 def room(request, pk):
     room=Room.objects.get(id=pk)
-    context = {'room': room}
+    room_messages = room.message_set.all().order_by('-created') #get all room_messages related to this room
+    participants=room.participants.all()
+
+    if request.method == "POST":
+        message=Message.objects.create(
+            user=request.user,
+            room=room,
+            body=request.POST.get('body')
+        )
+        room.participants.add(request.user)
+        message.save()
+        return redirect('room', pk=room.id)
+    context = {'room': room, 'room_messages':room_messages, 'participants':participants}
     return render(request, 'base/room.html', context)
+
 
 @login_required(login_url='/login')
 def create_room(request):
@@ -90,6 +129,7 @@ def update_room(request, pk):
     context = {'form':form}
     return render(request, 'base/room_form.html', context)
 
+
 @login_required(login_url='/login')
 def delete_room(request, pk):
     room=Room.objects.get(id=pk)
@@ -103,6 +143,17 @@ def delete_room(request, pk):
     return render(request, 'base/delete.html', {'obj':room})
 
 
+@login_required(login_url='/login')
+def delete_message(request, pk):
+    message=Message.objects.get(id=pk)
+
+    if request.user != message.user:
+        return HttpResponse("You Do Not Have the Necessary Privileges!")
+
+    if request.method == "POST":
+        message.delete()
+        return redirect('home')
+    return render(request, 'base/delete.html', {'obj':message})
 
 
 
