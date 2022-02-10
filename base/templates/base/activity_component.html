@@ -1,7 +1,7 @@
   
-{% comment %} {% if request.user == message.user %}
-<a href="{% url 'delete_message' message.id %}">Delete</a>
-{% endif %} {% endcomment %}
+{% comment %} 
+<a href="">Delete</a>
+{% endcomment %}
 <div class="activities">
     <div class="activities__header">
       <h2>Recent Activities</h2>
@@ -17,8 +17,9 @@
               <span>{{message.created | timesince}} ago</span>
           </p>
         </a>
+        {% if request.user == message.user %}
         <div class="roomListRoom__actions">
-          <a href="#">
+          <a href="{% url 'delete_message' message.id %}">
             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
               <title>remove</title>
               <path
@@ -27,9 +28,10 @@
             </svg>
           </a>
         </div>
+        {% endif %} 
       </div>
       <div class="activities__boxContent">
-        <p>replied to post “<a href="room.html">{{message.room}}</a>”</p>
+        <p>replied to post “<a href="{% url 'room' message.room.id %}">{{message.room}}</a>”</p>
         <div class="activities__boxRoomContent">
             {{message.body}}
         </div>
