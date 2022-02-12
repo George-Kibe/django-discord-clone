@@ -1,9 +1,10 @@
 from django.apps import AppConfig
 
 
-class BaseConfig(AppConfig):
+class SignalstestConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'base'
+    name = 'signalstest'
 
     def ready(self):
-        import base.signals
+        import signalstest.signals
+
