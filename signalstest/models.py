@@ -18,3 +18,12 @@ class Signal(models.Model):
     def __str__(self):
         return self.name+"--"+self.description+"--"+str(self.date)
 
+class Snippet(models.Model):
+    title=models.CharField(max_length=100)
+    body=models.TextField()
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True) 
+    font_size=models.IntegerField(default=12)
+
+    def __str__(self):
+        return self.title+"--"+self.body[:50]+"--"+str(self.updated)
