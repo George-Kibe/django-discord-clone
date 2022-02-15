@@ -7,3 +7,5 @@ class BaseConfig(AppConfig):
 
     def ready(self):
         import base.signals
+
+#testing some operations in this page
