@@ -9,11 +9,7 @@ from django.db.models import Q
 from .models import Room, Topic, Message
 from .forms import RoomForm, UserForm
 # Create your views here.
-# rooms = [
-#     {'id':1, 'name':'Lets learn python django'},
-#     {'id':2, 'name':'Lets learn React and Ajax'},
-#     {'id':3, 'name':'Lets learn python Pivot tables, chart.js and apex charts'},
-# ]
+
 def login_page(request):
     page='login'
     if request.user.is_authenticated:
@@ -72,7 +68,7 @@ def home(request):
         Q(description__icontains=q) |
         Q(host__username__icontains=q)
     )
-    topics=Topic.objects.all()
+    topics=Topic.objects.all()[0:5]
     room_count=rooms.count()
     room_messages = Message.objects.all().filter(
         Q(room__topic__name__icontains=q)
@@ -190,3 +186,17 @@ def update_user(request):
     context={'form':form}
     return render(request, 'base/update-user.html', context)
 
+
+def topics_page(request):
+    q=request.GET.get('q')
+    if request.GET.get('q') == None:
+        q=''
+    topics=Topic.objects.filter(name__icontains=q)
+    context = {'topics':topics}
+    return render(request, 'base/topics.html', context)
+
+
+def activity_page(request):
+    room_messages=Message.objects.all()
+    context = {'room_messages':room_messages}
+    return render(request, 'base/activity.html', context)
