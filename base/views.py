@@ -6,7 +6,49 @@ from django.contrib.auth import authenticate, login, logout
 from django.db.models import Q
 from .models import Room, Topic, Message, User
 from .forms import RoomForm, UserForm, MyUserCreationForm
+# imports for pdf
+from django.http import FileResponse
+import io
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import inch
+from reportlab.lib.pagesizes import letter
+
 # Create your views here.
+# get_pdf
+
+
+def get_pdf(request):
+    # create Bytestream buffer
+    buf = io.BytesIO()
+    # create a canvas
+    c = canvas.Canvas(buf, pagesize=letter, bottomup=0)
+    # create a text object
+    textobj = c.beginText()
+    textobj.setTextOrigin(inch, inch)
+    textobj.setFont("Helvetica", 14)
+    # Add some lines of text
+    rooms = Room.objects.all()
+    lines = []
+    # loop
+    for room in rooms:
+        lines.append(str(room.host))
+        lines.append(str(room.topic))
+        lines.append(str(room.name))
+        lines.append(str(room.description))
+        lines.append(str(room.participants))
+        lines.append(str(room.created))
+        lines.append(str(room.updated))
+        lines.append("============================")
+    print(lines)
+    for line in lines:
+        textobj.textLine(line)
+    # finish up
+    c.drawText(textobj)
+    c.showPage()
+    c.save()
+    buf.seek(0)
+    # return something
+    return FileResponse(buf, as_attachment=True, filename="rooms.pdf")
 
 
 def login_page(request):
