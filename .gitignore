@@ -7,6 +7,8 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+denv
+StudyBud/
 .Python
 build/
 develop-eggs/

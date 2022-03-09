@@ -18,21 +18,23 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
-	'jazzmin',
-	
+    'jazzmin',
+
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    #custom
+    # custom
     'rest_framework',
     'corsheaders',
-    #apps
+    # apps
+    'signalstest',
     'base',
-    'signalstest'
 ]
+
+AUTH_USER_MODEL = 'base.User'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -52,7 +54,7 @@ ROOT_URLCONF = 'studybuddy.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [ BASE_DIR / 'templates'],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -113,10 +115,12 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.0/howto/static-files/
 
-STATIC_URL = 'static/'
-STATICFILES_DIRS = [
-    BASE_DIR / "static"
-]
+STATIC_URL = '/static/'
+MEDIA_URL = '/images/'
+
+STATICFILES_DIRS = [BASE_DIR / "static"]
+MEDIA_ROOT = BASE_DIR / 'static/images'
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
@@ -127,5 +131,5 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 JAZZMIN_SETTINGS = {
     "site_header": "Discord Clone Admin Section",
-	"welcome_sign": "Welcome to the Studybuddy Admin Section",
+    "welcome_sign": "Welcome to the Studybuddy Admin Section",
 }
