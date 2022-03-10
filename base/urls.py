@@ -19,4 +19,5 @@ urlpatterns = [
     path('topics/', views.topics_page, name="topics"),
     path('activity/', views.activity_page, name="activity"),
     path('get-pdf/', views.get_pdf, name="get_pdf"),
+    path('get-pdf-json/', views.get_pdf_json, name="get_pdf_json"),
 ]
