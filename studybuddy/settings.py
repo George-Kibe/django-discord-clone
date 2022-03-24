@@ -29,9 +29,11 @@ INSTALLED_APPS = [
     # custom
     'rest_framework',
     'corsheaders',
+    'widget_tweaks',
     # apps
     'signalstest',
     'base',
+    'polls',
 ]
 
 AUTH_USER_MODEL = 'base.User'
