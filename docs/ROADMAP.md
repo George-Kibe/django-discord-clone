@@ -77,7 +77,8 @@ The production pipeline (Phase 2) comes deliberately early, so every later featu
 - [x] Production rehearsal script and CI job: deploy, HTTPS, `check --deploy`, Secure cookies/CSRF, backup + restore drill, broken-release rollback
 - [ ] **Owner:** VPS + domain + DNS (A/AAAA, SPF/DKIM/DMARC for mail)
 - [ ] **Owner:** production email provider (`EMAIL_URL`), backup bucket + age key pair, healthchecks.io/uptime monitor
-- [ ] Sentry for frontend + backend (backend wiring done; needs the Sentry decision/DSN). Disk-usage alert on the host
+- [x] Host disk/memory/unhealthy-container alert (`infra/scripts/host-health.sh` + cron → heartbeat)
+- [ ] Sentry for frontend + backend (backend wiring done; needs the Sentry decision/DSN)
 - [ ] First production deploy + restore drill on the real server
 
 **Exit criteria:** a merge to `main` deploys to production in < 10 min with no manual steps. HTTPS grade A (SSL Labs). A backup restored into a scratch DB successfully. Errors reach Sentry.

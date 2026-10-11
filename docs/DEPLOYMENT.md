@@ -34,6 +34,7 @@ Target: Ubuntu 24.04 LTS (or Debian 13), 2 vCPU / 4 GB RAM / 40 GB+ SSD.
    { "log-driver": "local", "log-opts": { "max-size": "20m", "max-file": "5" } }
    ```
 5. **Swap:** add 2 GB swap (protects against OOM during deploys).
+   **Cron** (as `deploy`): `*/10 * * * * /srv/app/infra/scripts/host-health.sh >/dev/null 2>&1` (see §7).
 6. **App directory:** `mkdir -p /srv/app && chown deploy: /srv/app`. Copy [`infra/env.production.example`](../infra/env.production.example) to `/srv/app/.env` (mode `600`) and fill in real values (see §5).
 7. **Backup key pair** (on your own machine, **not** the server): `age-keygen -o discord-clone-backup-key.txt`. Put the printed public key (`age1…`) in `BACKUP_AGE_RECIPIENT`, and store the private key file in your password manager. The server can create backups but can never read them.
 8. **GHCR access:** `docker login ghcr.io` as `deploy`, using a fine-grained token with `read:packages` (or make the packages public).
@@ -168,7 +169,7 @@ rm ~/discord-clone-backup-key.txt     # don't leave the private key on the serve
 | Uptime (`/api/health/ready`, `/`) | External monitor, 1-min interval | Email |
 | Application errors | Sentry (backend, Celery, Next.js) | Email (new issues, spikes) |
 | Backup success | Heartbeat ping | Email on a missed ping |
-| Disk > 80 %, memory pressure | Small cron script on the host → heartbeat/email | Email |
+| Disk > 80 %, memory > 90 %, unhealthy containers | [`infra/scripts/host-health.sh`](../infra/scripts/host-health.sh) every 10 min from cron → `HOST_HEARTBEAT_URL` (`/fail` on problems) | Email |
 | TLS expiry | Caddy auto-renews. The uptime monitor checks certificate expiry | Email |
 
 ## 8. Routine operations
