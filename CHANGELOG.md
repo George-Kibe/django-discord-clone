@@ -6,15 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-11
+
+Phase 2: production pipeline, built and rehearsed locally (the real deployment is the final phase).
+
 ### Added
 
-- **Phase 2: production pipeline** (in progress)
+- Development: frontend on http://localhost:3000 and backend on http://localhost:8000, in addition to Caddy on http://localhost. Next.js dev rewrites proxy `/api`, `/ws`, `/admin` and `/static`, so :3000 is a complete app (cookies, CSRF and WebSockets included).
+- **Production pipeline**
   - `compose.prod.yaml` (HTTPS via Caddy, HSTS, HTTP/3, resource limits, tuned Postgres/Redis) and a production `.env` template.
   - `build.yml` (GHCR images with a Trivy gate), `deploy.yml` (SSH deploy, manual rollback by tag), and `infra/scripts/deploy.sh` with health-gated automatic rollback.
   - Encrypted nightly PostgreSQL backups (age public key + rclone to any S3) with retention, a heartbeat and a restore script.
   - `infra/scripts/rehearse-production.sh`: an end-to-end production rehearsal, also run in CI on infra changes.
   - `infra/scripts/host-health.sh`: disk, memory and unhealthy-container alerts for cron.
   - Sentry error tracking for Django, Celery and Next.js (server + browser, ad-block-safe `/monitoring` tunnel, optional source-map upload). No cookies, headers, bodies, query strings, user info or local variables are sent. Disabled until a DSN is set.
+
+### Changed
+
+- Roadmap: the real VPS deployment moves to the final phase (Phase 7). Phase 2 is complete as a locally rehearsed pipeline.
 
 ### Fixed
 
@@ -70,6 +79,7 @@ Phase 0: foundations.
 
 - Original "StudyBuddy" Django/Jinja application: topics, rooms, messages, participants, activity feed, user profiles, a polls app, rooms PDF export and login/logout audit signals. This code moves to `legacy/` in Phase 0 of the rewrite.
 
-[Unreleased]: https://github.com/George-Kibe/django-discord-clone/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/George-Kibe/django-discord-clone/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/George-Kibe/django-discord-clone/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/George-Kibe/django-discord-clone/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/George-Kibe/django-discord-clone/releases/tag/v0.1.0

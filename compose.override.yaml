@@ -25,6 +25,8 @@ services:
       context: ./frontend
       target: dev
     image: discord-clone-web:dev
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3000}:3000" # frontend directly (dev proxies /api, /ws to Django)
     environment:
       WATCHPACK_POLLING: ${WATCHPACK_POLLING:-false}
     volumes:
@@ -42,6 +44,8 @@ services:
 
   api:
     <<: *backend-dev
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000" # Django directly: /api/docs/, /admin/, /ws/
 
   worker:
     <<: *backend-dev
