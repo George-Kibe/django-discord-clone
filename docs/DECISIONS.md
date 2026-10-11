@@ -41,6 +41,7 @@ Lightweight ADRs. Each records a decision, its context and its consequences. ADR
 | 020 | shadcn/ui + TanStack Query on the frontend | Accepted |
 | 021 | Celery beat with a static schedule (no django-celery-beat) | Accepted |
 | 022 | Signed-in app fetches user data client-side; `session` hint cookie | Accepted |
+| 023 | Backups: age public-key encryption + rclone to any S3 | Accepted |
 
 ---
 
@@ -363,4 +364,21 @@ ADR-006 scopes the refresh cookie to `/api/v1/auth`, so the browser only sends i
 - Expired access tokens never surface to users. The refresh token never leaves the auth path.
 - The signed-in UI shows a short loading state on a full page load. Client navigations are instant.
 - The hint cookie can be forged, but that only renders an empty shell that immediately fails its API calls. Every authorization decision stays in the API.
+
+## ADR-023: Backups: age public-key encryption + rclone to any S3
+- **Status:** Accepted
+- **Date:** 2026-10-11
+
+### Context
+NFR-REL-03/04 need nightly off-site backups and tested restores. The storage provider isn't chosen yet. A passphrase stored next to the backups on the server would let anyone who compromises the server read every backup.
+
+### Decision
+- A `backup` container (`postgres:18.6` + `age` + `rclone`) runs `pg_dump --format=custom | age -r <public key>` daily and uploads the result with rclone to any S3-compatible bucket, configured through `RCLONE_S3_*` variables.
+- Encryption uses an **age public key**. The private key stays offline (password manager) and is mounted only during a restore.
+- Retention (7 daily, 4 weekly, 3 monthly) is enforced by the job itself. Success and failure are reported to a heartbeat URL.
+- `infra/scripts/rehearse-production.sh` performs a backup and restore drill against a local S3 server on every infra change.
+
+### Consequences
+- The provider can be swapped by changing environment variables. A compromised server can't decrypt old backups.
+- Losing the private key means losing the backups, so it must be stored redundantly.
 
