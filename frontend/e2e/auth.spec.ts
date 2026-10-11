@@ -139,7 +139,10 @@ test.describe("accounts (Phase 1)", () => {
     await page.goto("/login");
     await expect(page).toHaveURL(/\/channels\/me$/);
     // The sidebar's Settings link lands on profile settings.
-    await page.getByRole("navigation", { name: "Home" }).getByRole("link", { name: "Settings" }).click();
+    await page
+      .getByRole("navigation", { name: "Home" })
+      .getByRole("link", { name: "Settings" })
+      .click();
     await expect(page).toHaveURL(/\/settings\/profile$/);
   });
 });
