@@ -9,7 +9,7 @@ Everything runs in Docker. Host installs of Python/Node are optional and only us
 | Docker Engine + Compose plugin | current stable | Docker Desktop also works on macOS/Windows |
 | Git | any recent | |
 | *(optional)* uv | latest | `uv sync` in `backend/` for editor tooling |
-| *(optional)* Node.js | 24 LTS (`.nvmrc`) | plus pnpm (version from `package.json` → `packageManager`) |
+| *(optional)* Node.js | 24 LTS (`.nvmrc`) | plus pnpm 12 (`npm i -g pnpm@12.11.2`). Needed on the host only for `make e2e` and editor tooling |
 | *(optional)* make | | shortcuts below |
 
 ## First run
@@ -17,12 +17,11 @@ Everything runs in Docker. Host installs of Python/Node are optional and only us
 ```bash
 git clone https://github.com/George-Kibe/django-discord-clone.git
 cd django-discord-clone
-cp .env.example .env          # fill in CLOUDINARY_URL; the defaults work for everything else
-docker compose up --build -d
-docker compose exec api python manage.py migrate
-docker compose exec api python manage.py createsuperuser
-docker compose exec api python manage.py seed_dev   # optional: demo users, servers, messages
+make up                       # creates .env from .env.example, builds and starts the stack
+make createsuperuser          # admin account for /admin/
 ```
+
+In development the `api` container applies migrations automatically on start. Fill in `CLOUDINARY_URL` in `.env` once you have the credentials. Nothing in Phase 0 needs it. Without `make`, use `cp .env.example .env && docker compose up -d --build`.
 
 Open http://localhost.
 
@@ -47,7 +46,9 @@ Open http://localhost.
 | `redis` | `redis:8` | Cache, channel layer, broker | — |
 | `mailpit` | `axllent/mailpit` | SMTP sink + web UI | — |
 
-`node_modules` and the Python virtualenv live in named volumes inside the containers, so host files never clash with them.
+The Python virtualenv lives at `/opt/venv` inside the image, and `node_modules` and `.next` live in named volumes, so host files never clash with them. Containers run as uid 1000. If your host user has a different uid, set `HOST_UID`/`HOST_GID` in `.env` and rebuild.
+
+After adding a frontend dependency inside the container, the `web_node_modules` volume already has it. After pulling someone else's dependency change, run `docker compose exec web pnpm install` (or `docker compose down && docker volume rm <project>_web_node_modules && make up`).
 
 ## Everyday commands
 
@@ -68,7 +69,7 @@ Make targets wrap the long `docker compose` commands:
 | `make lint` | Ruff, mypy, ESLint, Prettier check, `tsc` | |
 | `make fmt` | Ruff format + fix, Prettier write | |
 | `make gen-api` | export the OpenAPI schema → `pnpm gen:api` | Regenerate frontend types |
-| `make reset-db` | drop the volume, recreate, migrate, seed | ⚠ destroys local data |
+| `make reset-db` | drop the database volume and recreate it | ⚠ destroys local data |
 
 ### Adding dependencies
 

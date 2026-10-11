@@ -1,0 +1,217 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  UV_VERSION: "0.13.0"
+  PYTHON_VERSION: "3.14"
+
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-24.04
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      docker: ${{ steps.filter.outputs.docker }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            shared: &shared
+              - .github/workflows/ci.yml
+            backend:
+              - *shared
+              - backend/**
+            frontend:
+              - *shared
+              - frontend/**
+              - backend/schema.yaml
+            docker:
+              - *shared
+              - backend/**
+              - frontend/**
+              - compose*.yaml
+              - infra/**
+              - .env.example
+
+  backend:
+    name: Backend (lint, types, tests, schema)
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:18.6
+        env:
+          POSTGRES_DB: app
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U app -d app"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:8.10
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.test
+      DJANGO_SECRET_KEY: ci-not-secret
+      DATABASE_URL: postgres://app:app@localhost:5432/app
+      REDIS_URL: redis://localhost:6379
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: astral-sh/setup-uv@v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - name: Install dependencies
+        run: uv sync --locked
+      - name: Ruff
+        run: uv run ruff check --output-format=github . && uv run ruff format --check .
+      - name: Mypy
+        run: uv run mypy .
+      - name: Missing migrations
+        run: uv run python manage.py makemigrations --check --dry-run
+      - name: Tests
+        run: uv run pytest --cov --cov-report=term --cov-report=xml --cov-fail-under=85
+      - name: OpenAPI schema is up to date
+        run: |
+          uv run python manage.py spectacular --validate --fail-on-warn --file schema.yaml
+          git diff --exit-code -- schema.yaml || (echo "::error::backend/schema.yaml is stale. Run 'make gen-api' and commit." && exit 1)
+      - name: Dependency audit
+        run: |
+          uv export --locked --no-dev --format requirements-txt > "$RUNNER_TEMP/requirements.txt"
+          uvx pip-audit --strict --disable-pip --no-deps -r "$RUNNER_TEMP/requirements.txt"
+
+  frontend:
+    name: Frontend (lint, types, tests, build)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' || github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: ESLint
+        run: pnpm lint
+      - name: Prettier
+        run: pnpm format:check
+      - name: Type check
+        run: pnpm typecheck
+      - name: Unit tests
+        run: pnpm test
+      - name: API types are up to date
+        run: |
+          pnpm gen:api
+          git diff --exit-code -- src/types/api.d.ts || (echo "::error::frontend/src/types/api.d.ts is stale. Run 'make gen-api' and commit." && exit 1)
+      - name: Build
+        run: pnpm build
+      - name: Dependency audit
+        run: pnpm audit --prod --audit-level high
+
+  docker:
+    name: Production images build
+    needs: changes
+    if: needs.changes.outputs.docker == 'true' || github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        app: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.app }}
+          target: prod
+          push: false
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+
+  e2e:
+    name: End-to-end (Docker Compose + Playwright)
+    needs: [backend, frontend]
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Start stack
+        run: |
+          cp .env.example .env
+          # Dev containers run as uid 1000; the runner checkout is owned by uid 1001.
+          chmod -R a+rwX frontend backend
+          docker compose up -d --build --wait --wait-timeout 300
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Install Playwright
+        working-directory: frontend
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+      - name: Run E2E
+        working-directory: frontend
+        run: pnpm e2e
+      - name: Stack logs
+        if: failure()
+        run: docker compose logs --no-color --tail=200
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          retention-days: 7
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

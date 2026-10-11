@@ -58,8 +58,7 @@ Prerequisites: Docker Engine with the Compose plugin, and Git. You don't need Py
 ```bash
 git clone https://github.com/George-Kibe/django-discord-clone.git
 cd django-discord-clone
-cp .env.example .env            # then fill in Cloudinary credentials etc.
-docker compose up --build
+make up                         # creates .env from .env.example, builds and starts everything
 ```
 
 | URL | What |

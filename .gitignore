@@ -17,8 +17,8 @@ downloads/
 eggs/
 .eggs/
 invoice/
-lib/
-lib64/
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -130,3 +130,16 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# ---------------------------------------------------------------- rewrite (Phase 0)
+.env
+!.env.example
+node_modules/
+.venv/
+staticfiles/
+.ruff_cache/
+.mypy_cache/
+coverage/
+playwright-report/
+test-results/
+.DS_Store

@@ -26,7 +26,7 @@ Lightweight ADRs. Each records a decision, its context and its consequences. ADR
 | 005 | Single origin behind Caddy | Accepted |
 | 006 | JWT in httpOnly cookies (SimpleJWT) | Accepted |
 | 007 | Django Channels: REST for writes, WebSocket for push | Accepted |
-| 008 | Celery + Redis for background work | Accepted |
+| 008 | Celery + Redis for background work | Accepted (amended by ADR-021) |
 | 009 | PostgreSQL 18 without PostGIS | Accepted |
 | 010 | Cloudinary with signed direct uploads | Accepted |
 | 011 | UUIDv7 primary keys | Accepted |
@@ -39,6 +39,7 @@ Lightweight ADRs. Each records a decision, its context and its consequences. ADR
 | 018 | Keep legacy code in `legacy/` until parity | Accepted |
 | 019 | Conventional Commits, SemVer, Keep a Changelog | Accepted |
 | 020 | shadcn/ui + TanStack Query on the frontend | Accepted |
+| 021 | Celery beat with a static schedule (no django-celery-beat) | Accepted |
 
 ---
 
@@ -175,7 +176,7 @@ Chat needs live updates. Sending writes over WebSockets duplicates validation, a
 - **Date:** 2026-10-11
 
 ### Decision
-Celery workers (`default` and `heavy` queues) and Celery beat (`django-celery-beat`, schedules stored in the DB). Redis is the broker and result backend. Tasks must be idempotent, use `acks_late`, retry with backoff and have time limits. Use for: email, notifications fan-out, PDF exports, poll closing, cleanups, link previews.
+Celery workers (`default` and `heavy` queues) and Celery beat (static schedule, see ADR-021). Redis is the broker and result backend. Tasks must be idempotent, use `acks_late`, retry with backoff and have time limits. Use for: email, notifications fan-out, PDF exports, poll closing, cleanups, link previews.
 
 ### Consequences
 Two extra containers (worker, beat). Redis gets AOF persistence in production so queued jobs survive restarts. Django 6's built-in Tasks framework was considered, but Celery is more mature for retries, scheduling and monitoring today. Revisit once the Tasks framework has production backends.
@@ -260,12 +261,12 @@ Cheap and simple. The single point of failure is accepted (NFR-REL-01). Moving t
 | Types | **mypy** + `django-stubs` + `djangorestframework-stubs` | TypeScript strict, `tsc --noEmit` |
 | Unit / integration tests | **pytest**, pytest-django, pytest-asyncio, factory-boy | **Vitest** + Testing Library + MSW |
 | E2E | — | **Playwright** against the full Compose stack |
-| Git hooks | **pre-commit** (Ruff, mypy, Prettier, ESLint, gitleaks, end-of-file fixes) | |
+| Git hooks | **pre-commit** (Ruff, Prettier, gitleaks, basic file hygiene). mypy, ESLint, `tsc` and tests are too slow for every commit, so they run in CI and `make check` | |
 
 Tests coverage should always be at least 95%
 
 ### Consequences
-Fast tooling. One `pre-commit` config at the repo root runs both stacks' checks.
+Fast tooling. One `pre-commit` config at the repo root covers both stacks. The heavier checks run in CI.
 
 ## ADR-015: PostgreSQL full-text search
 - **Status:** Accepted
@@ -329,3 +330,19 @@ Accessible, consistent UI without a heavy component library dependency.
 
 ### merge and commit rules
 When done working on a feature, test it 100%, test all previous features to ensure it does not affect the previous code then merge to main and delete the created branch(both locally and on github)
+
+## ADR-021: Celery beat with a static schedule (no django-celery-beat)
+- **Status:** Accepted (amends ADR-008)
+- **Date:** 2026-10-11
+
+### Context
+ADR-008 planned to store beat schedules in the database with `django-celery-beat`. During Phase 0, its latest release (2.9.0) declared `django<6.1`, so it can't be installed with Django 6.1.2 (ADR-002). Every planned schedule is fixed (every minute, hourly, daily). None needs to be edited at runtime.
+
+### Decision
+Use Celery's built-in beat scheduler with the schedule declared in `CELERY_BEAT_SCHEDULE` (`config/settings/base.py`). Beat's local state file lives in `/tmp` inside the container. Losing it on restart only means a task runs at its next interval, which is harmless because tasks are idempotent.
+
+### Consequences
+- One less dependency and no beat tables. Schedules are reviewed in code like everything else.
+- Changing a schedule needs a deploy. That's acceptable at this scale.
+- Revisit if runtime-editable schedules are ever needed and `django-celery-beat` supports the Django version in use.
+

@@ -6,7 +6,7 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
 
 | Phase | Name | Version | Status |
 |---|---|---|---|
-| 0 | Foundations | v0.1.0 | ⬜ |
+| 0 | Foundations | v0.1.0 | 🟨 |
 | 1 | Accounts & profiles | v0.2.0 | ⬜ |
 | 2 | Production pipeline | v0.3.0 | ⬜ |
 | 3 | Servers, channels & messages | v0.4.0 | ⬜ |
@@ -23,32 +23,32 @@ The production pipeline (Phase 2) comes deliberately early, so every later featu
 
 **Goal:** a clean monorepo where `docker compose up` starts a working (empty) stack, with CI enforcing quality from day one.
 
-- [ ] Move the legacy app into `legacy/` (ADR-018)
-- [ ] Root files: `.editorconfig`, `.gitignore` (Python + Node + env), `.env.example`, `.pre-commit-config.yaml`, `.dockerignore`s
-- [ ] **Backend skeleton**
-  - [ ] `uv` project, Python 3.14, Django 6.1.2, DRF, Channels, Celery, django-environ
-  - [ ] Settings split `base/dev/test/prod`. JSON logging. Argon2.
-  - [ ] `core` app: `UUIDModel`/`TimestampedModel`, error handler (standard error shape), pagination classes
-  - [ ] Custom `accounts.User` model **created before the first migration**
-  - [ ] ASGI app with HTTP + WebSocket routing (a ping consumer)
-  - [ ] Celery app + a sample task. Beat with django-celery-beat
-  - [ ] Health endpoints `/api/health/live`, `/api/health/ready`
-  - [ ] drf-spectacular schema + Swagger UI
-  - [ ] pytest + factory-boy setup. Ruff + mypy config
-- [ ] **Frontend skeleton**
-  - [ ] Next.js 16.4.0 (App Router, TS strict, `src/`), Tailwind CSS 4, pnpm, Node 24
-  - [ ] shadcn/ui init, theme tokens (dark default), base layout, landing page
-  - [ ] Typed API client + `pnpm gen:api`. TanStack Query provider
-  - [ ] ESLint, Prettier, Vitest, Playwright config
-- [ ] **Docker (dev)**
-  - [ ] Multi-stage Dockerfiles for `api` and `web` (dev + prod targets, non-root)
-  - [ ] `compose.yaml` + `compose.override.yaml`: caddy, web, api, worker, beat, db, redis, mailpit
-  - [ ] Health checks, named volumes, hot reload
-  - [ ] Makefile / `just` shortcuts (`make up`, `make test`, `make migrate`, …)
-- [ ] **CI** (`.github/workflows/ci.yml`): backend lint/type/test (Postgres + Redis services), frontend lint/type/test/build, schema-drift check, gitleaks. Dependabot config
-- [ ] Branch protection on `main` (CI required, PRs only)
+- [x] Move the legacy app into `legacy/` (ADR-018)
+- [x] Root files: `.editorconfig`, `.gitignore` (Python + Node + env), `.env.example`, `.pre-commit-config.yaml`, `.dockerignore`s
+- [x] **Backend skeleton**
+  - [x] `uv` project, Python 3.14, Django 6.1.2, DRF, Channels, Celery, django-environ
+  - [x] Settings split `base/dev/test/prod`. JSON logging. Argon2.
+  - [x] `core` app: `UUIDModel`/`TimestampedModel`, error handler (standard error shape), pagination classes
+  - [x] Custom `accounts.User` model **created before the first migration**
+  - [x] ASGI app with HTTP + WebSocket routing (a ping consumer)
+  - [x] Celery app + a sample task. Beat with a static schedule (ADR-021)
+  - [x] Health endpoints `/api/health/live`, `/api/health/ready`
+  - [x] drf-spectacular schema + Swagger UI
+  - [x] pytest + factory-boy setup. Ruff + mypy config
+- [x] **Frontend skeleton**
+  - [x] Next.js 16.4.0 (App Router, TS strict, `src/`), Tailwind CSS 4, pnpm, Node 24
+  - [x] shadcn/ui init, theme tokens (dark default), base layout, landing page
+  - [x] Typed API client + `pnpm gen:api`. TanStack Query provider
+  - [x] ESLint, Prettier, Vitest, Playwright config
+- [x] **Docker (dev)**
+  - [x] Multi-stage Dockerfiles for `api` and `web` (dev + prod targets, non-root)
+  - [x] `compose.yaml` + `compose.override.yaml`: caddy, web, api, worker, beat, db, redis, mailpit
+  - [x] Health checks, named volumes, hot reload
+  - [x] Makefile shortcuts (`make up`, `make test`, `make migrate`, …)
+- [x] **CI** (`.github/workflows/ci.yml`): backend lint/type/test (Postgres + Redis services), frontend lint/type/test/build, schema-drift check, gitleaks. E2E job (Compose + Playwright), production image build check. Dependabot config
+- [ ] Branch protection on `main` (CI required, PRs only). Set in GitHub settings once CI has run
 
-**Exit criteria:** fresh clone → `cp .env.example .env && docker compose up` → landing page at `http://localhost`, Swagger at `/api/docs/`, the WS ping works, a Celery task runs; CI is green on a PR.
+**Exit criteria:** fresh clone → `make up` → landing page at `http://localhost`, Swagger at `/api/docs/`, the WS ping works, a Celery task runs; CI is green on a PR.
 
 ## Phase 1: Accounts & profiles (`v0.2.0`)
 
