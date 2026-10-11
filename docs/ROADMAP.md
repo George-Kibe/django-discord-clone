@@ -9,7 +9,7 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
 | 0 | Foundations | v0.1.0 | ✅ |
 | 1 | Accounts & profiles | v0.2.0 | ✅ |
 | 2 | Production pipeline (built & rehearsed locally) | v0.3.0 | ✅ |
-| 3 | Servers, channels & messages | v0.4.0 | ⬜ |
+| 3 | Servers, channels & messages | v0.4.0 | ✅ |
 | 4 | Real-time | v0.5.0 | ⬜ |
 | 5 | Rich messaging & DMs | v0.6.0 | ⬜ |
 | 6 | Community features | v0.7.0 | ⬜ |
@@ -81,17 +81,19 @@ The production pipeline (Phase 2) was built early and is rehearsed against produ
 
 **Exit criteria (met locally):** the rehearsal passes in CI (deploy, HTTPS, rollback, backup → restore). Images are scan-clean and published. Sentry captures errors without leaking secrets. Server-dependent criteria moved to Phase 7.
 
-## Phase 3: Servers, channels & messages (`v0.4.0`)
+## Phase 3: Servers, channels & messages (`v0.4.0`) ✅
 
 **Goal:** the core Discord structure works over REST (no live updates yet).
 
-- [ ] Servers CRUD, default role + `#general`, membership, leave, ownership transfer (FR-SRV-01…06, 09)
-- [ ] Roles & permission engine with hierarchy (FR-ROLE-01…04). Heavy unit + property tests
-- [ ] Invites: create/preview/accept/revoke (FR-SRV-04/05)
-- [ ] Categories & text channels CRUD + reordering. Visibility filtering (FR-CH-01…03)
-- [ ] Messages: send (with nonce), history (cursor), edit, delete, moderator delete (FR-MSG-01, 03…05, 11)
-- [ ] Frontend: the Discord 3-column layout (server rail, channel sidebar, chat pane, member list), server/channel settings dialogs, invite flow, message list with virtualization and infinite scroll, composer
-- [ ] Query-count tests on list endpoints (NFR-PERF-04/05)
+- [x] Servers CRUD, default role + `#general`, membership, leave, ownership transfer (FR-SRV-01…06, 09)
+- [x] Roles & permission engine with hierarchy (FR-ROLE-01…04). Heavy unit + property tests
+- [x] Invites: create/preview/accept/revoke (FR-SRV-04/05)
+- [x] Categories & text channels CRUD + reordering. Visibility filtering (FR-CH-01…03)
+- [x] Messages: send (with nonce), history (cursor), edit, delete, moderator delete (FR-MSG-01, 03…05, 11)
+- [x] Frontend: the Discord 3-column layout (server rail, channel sidebar, chat pane, member list), server/channel settings dialogs, invite flow, message list with virtualization and infinite scroll, composer
+- [x] Query-count tests on list endpoints (NFR-PERF-04/05)
+- [x] Also delivered: channel permission overwrites (API + engine; UI in Phase 6), public profile card with mutual servers (FR-PROF-03), topics seeded, generated permission constants with a CI drift check, server icons
+- Deferred by design: live updates (Phase 4; polling stands in), kick/ban (Phase 6), discovery page (Phase 6)
 
 **Exit criteria:** two users can create/join a server via invite, create channels and exchange messages (on refresh). Permission tests cover the overwrite/hierarchy matrix.
 

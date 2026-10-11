@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-11
+
+Phase 3: servers, channels & messages.
+
+### Added
+
+- Servers: create (default `@everyone`/Moderator/Admin roles, a category and `#general`), settings (name, description, icon, topic, public), ownership transfer, leave, join public servers, delete.
+- Roles & permissions: Discord-style bitfield engine (admin bypass, overwrite precedence, `VIEW_CHANNEL` gate) with exhaustive matrix tests. Role hierarchy and "can't grant what you don't have" rules, role CRUD/reorder, member role assignment and nicknames.
+- Invites: expiring, use-limited links with public preview, accept and revoke.
+- Channels: categories and text channels (create, rename, topic, reorder, move, delete), per-member visibility, channel permission overwrites (API).
+- Messages: send with nonce idempotency, cursor history (`before`/`after`), edit own, delete own or with Manage Messages, safe Markdown rendering. Verified email required to post.
+- UI: Discord-style layout (server rail, channel sidebar, virtualised chat with infinite scroll, member list with profile cards incl. mutual servers), create/join server dialog, invite landing page, server settings (overview, roles, members, invites, ownership), mobile drawers.
+- `GET /permissions`, generated frontend permission constants (CI drift check), and a window throttle supporting rates like `10/10s`.
+
+### Fixed
+
+- A message sent without a nonce crashed the API (caught by tests).
+- A newly created role's editor could discard typed changes.
+- An optimistic message's row remounted on confirmation (lost hover and focus).
+- Dead `/settings` link. WCAG 2.2 target sizes for small sidebar buttons.
+
 ## [0.3.0] - 2026-10-11
 
 Phase 2: production pipeline, built and rehearsed locally (the real deployment is the final phase).
@@ -79,7 +100,8 @@ Phase 0: foundations.
 
 - Original "StudyBuddy" Django/Jinja application: topics, rooms, messages, participants, activity feed, user profiles, a polls app, rooms PDF export and login/logout audit signals. This code moves to `legacy/` in Phase 0 of the rewrite.
 
-[Unreleased]: https://github.com/George-Kibe/django-discord-clone/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/George-Kibe/django-discord-clone/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/George-Kibe/django-discord-clone/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/George-Kibe/django-discord-clone/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/George-Kibe/django-discord-clone/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/George-Kibe/django-discord-clone/releases/tag/v0.1.0
