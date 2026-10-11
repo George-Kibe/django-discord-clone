@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **Phase 2: production pipeline** (in progress)
+  - `compose.prod.yaml` (HTTPS via Caddy, HSTS, HTTP/3, resource limits, tuned Postgres/Redis) and a production `.env` template.
+  - `build.yml` (GHCR images with a Trivy gate), `deploy.yml` (SSH deploy, manual rollback by tag), and `infra/scripts/deploy.sh` with health-gated automatic rollback.
+  - Encrypted nightly PostgreSQL backups (age public key + rclone to any S3) with retention, a heartbeat and a restore script.
+  - `infra/scripts/rehearse-production.sh`: an end-to-end production rehearsal, also run in CI on infra changes.
+
 - **Phase 1: accounts & profiles**
   - Email + password registration, email verification (with resend), login/logout, httpOnly cookie JWTs with rotating refresh tokens and reuse detection, CSRF protection, password reset and change, email change with confirmation, and a notice to the old address.
   - Per-IP and per-account throttling on auth endpoints. Auth audit log (API and Django admin logins) with a read-only admin view and 90-day retention.
@@ -34,6 +40,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Email is configured through Django 6.1's `MAILERS` setting, built from `EMAIL_URL`. The `EMAIL_*` settings are deprecated.
 
 ### Fixed
+
+- Production images no longer ship pip (api), npm/corepack (web) or gosu (backup), which removes HIGH CVEs in their vendored dependencies.
+- The `beat` container has its own health check (it inherited the API's, which always failed).
 
 - CI on `main`: restored `djangorestframework-stubs` 3.18 after a Dependabot mypy bump downgraded it to 1.4.0, whose mypy plugin crashes.
 - The dev `web` service has a health check, so `docker compose up --wait` succeeds (E2E in CI).

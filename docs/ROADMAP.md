@@ -8,7 +8,7 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
 |---|---|---|---|
 | 0 | Foundations | v0.1.0 | ✅ |
 | 1 | Accounts & profiles | v0.2.0 | ✅ |
-| 2 | Production pipeline | v0.3.0 | ⬜ |
+| 2 | Production pipeline | v0.3.0 | 🟨 |
 | 3 | Servers, channels & messages | v0.4.0 | ⬜ |
 | 4 | Real-time | v0.5.0 | ⬜ |
 | 5 | Rich messaging & DMs | v0.6.0 | ⬜ |
@@ -69,13 +69,17 @@ The production pipeline (Phase 2) comes deliberately early, so every later featu
 
 **Goal:** Phases 0–1 run in production on the VPS, deployed automatically.
 
-- [ ] `compose.prod.yaml`, production Caddyfile (TLS, headers, compression)
-- [ ] VPS provisioning runbook (user, SSH hardening, UFW, fail2ban, Docker, unattended upgrades) in [DEPLOYMENT.md](DEPLOYMENT.md)
-- [ ] Image build + push to GHCR (`build.yml`), Trivy scan
-- [ ] Deploy workflow (`deploy.yml`): SSH, pull, migrate, up, smoke test, automatic rollback on a failed health check
-- [ ] Nightly backups (`backup` container → S3-compatible storage) + **restore drill documented and performed**
-- [ ] Sentry (backend + frontend). Uptime monitor. Disk/backup alerts
-- [ ] Production email provider, domain + DNS (SPF/DKIM/DMARC)
+- [x] `compose.prod.yaml`, production Caddyfile (TLS, HSTS, headers, compression, HTTP/3), resource limits, Postgres/Redis tuning
+- [x] VPS provisioning runbook (user, SSH hardening, UFW, fail2ban, Docker, unattended upgrades) in [DEPLOYMENT.md](DEPLOYMENT.md) and [`infra/env.production.example`](../infra/env.production.example)
+- [x] Image build + push to GHCR (`build.yml`) with a Trivy gate. All three images are scan-clean (pip/npm/gosu removed)
+- [x] Deploy workflow (`deploy.yml`) + `infra/scripts/deploy.sh`: pull, migrate, up `--wait`, smoke test, automatic rollback. `infra/scripts/dc` for operations
+- [x] Encrypted nightly backups (`backup` container, age + rclone → S3) with retention and heartbeat (ADR-023)
+- [x] Production rehearsal script and CI job: deploy, HTTPS, `check --deploy`, Secure cookies/CSRF, backup + restore drill, broken-release rollback
+- [ ] **Owner:** VPS + domain + DNS (A/AAAA, SPF/DKIM/DMARC for mail)
+- [ ] **Owner:** production email provider (`EMAIL_URL`), backup bucket + age key pair, healthchecks.io/uptime monitor
+- [x] Host disk/memory/unhealthy-container alert (`infra/scripts/host-health.sh` + cron → heartbeat)
+- [ ] Sentry for frontend + backend (backend wiring done; needs the Sentry decision/DSN)
+- [ ] First production deploy + restore drill on the real server
 
 **Exit criteria:** a merge to `main` deploys to production in < 10 min with no manual steps. HTTPS grade A (SSL Labs). A backup restored into a scratch DB successfully. Errors reach Sentry.
 

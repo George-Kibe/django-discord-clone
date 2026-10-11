@@ -1,0 +1,18 @@
+# Local production rehearsal overrides (see infra/scripts/rehearse-production.sh).
+# Runs the production stack on https://localhost:8443 next to the dev stack, with a local
+# S3-compatible server standing in for the off-site backup bucket.
+services:
+  caddy:
+    ports: !override
+      - "8443:8443"
+
+  backup:
+    depends_on:
+      s3:
+        condition: service_started
+
+  s3:
+    image: rclone/rclone:1.75
+    entrypoint: ["sh", "-c"]
+    command:
+      - mkdir -p /data/backups && exec rclone serve s3 /data --addr :9000 --auth-key rehearsal,rehearsal-secret

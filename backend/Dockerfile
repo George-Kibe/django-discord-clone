@@ -16,6 +16,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     UV_PROJECT_ENVIRONMENT=/opt/venv \
     PATH="/opt/venv/bin:$PATH"
 COPY --from=uv /uv /uvx /usr/local/bin/
+# uv manages packages; drop pip (and its vendored urllib3/msgpack/setuptools) from the image.
+RUN python -m pip uninstall -y -q pip \
+ && rm -f /usr/local/lib/python*/ensurepip/_bundled/*.whl
 RUN groupadd --system --gid ${GID} app \
  && useradd --system --uid ${UID} --gid app --create-home --home-dir /home/app app \
  && mkdir -p /app /opt/venv \

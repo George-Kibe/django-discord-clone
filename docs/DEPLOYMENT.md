@@ -34,19 +34,33 @@ Target: Ubuntu 24.04 LTS (or Debian 13), 2 vCPU / 4 GB RAM / 40 GB+ SSD.
    { "log-driver": "local", "log-opts": { "max-size": "20m", "max-file": "5" } }
    ```
 5. **Swap:** add 2 GB swap (protects against OOM during deploys).
-6. **App directory:** `mkdir -p /srv/app && chown deploy: /srv/app`. Create `/srv/app/.env` (mode `600`) from `.env.example` with production values (see §5).
-7. **GHCR access:** `docker login ghcr.io` as `deploy`, using a fine-grained token with `read:packages` (or make the packages public).
-8. **First deploy:** run the deploy workflow manually (`workflow_dispatch`), then `docker compose exec api python manage.py createsuperuser`.
+   **Cron** (as `deploy`): `*/10 * * * * /srv/app/infra/scripts/host-health.sh >/dev/null 2>&1` (see §7).
+6. **App directory:** `mkdir -p /srv/app && chown deploy: /srv/app`. Copy [`infra/env.production.example`](../infra/env.production.example) to `/srv/app/.env` (mode `600`) and fill in real values (see §5).
+7. **Backup key pair** (on your own machine, **not** the server): `age-keygen -o discord-clone-backup-key.txt`. Put the printed public key (`age1…`) in `BACKUP_AGE_RECIPIENT`, and store the private key file in your password manager. The server can create backups but can never read them.
+8. **GHCR access:** `docker login ghcr.io` as `deploy`, using a fine-grained token with `read:packages` (or make the packages public).
+9. **GitHub:** create the `production` environment with the variables and secrets below. Until `DEPLOY_HOST` is set, `deploy.yml` skips itself.
+10. **First deploy:** run `deploy.yml` manually (`workflow_dispatch`, tag = the SHA of a green `main` build), then `./infra/scripts/dc exec api python manage.py createsuperuser`.
+
+### Rehearse before the first real deploy
+
+`./infra/scripts/rehearse-production.sh` runs the **same** deploy script against locally built production images, in a copy of the server layout with generated secrets, on `https://localhost:8443`. It checks:
+
+- **Deploy:** first deploy, health checks and smoke tests.
+- **HTTPS:** HSTS and security headers, no server banners, Swagger staff-only, `manage.py check --deploy` clean.
+- **Auth:** registration and login with `Secure` cookies and CSRF enforced.
+- **Backups:** an age-encrypted backup to an S3-compatible server, followed by a restore drill that compares row counts.
+- **Rollback:** a deliberately broken release must be rolled back automatically.
+
+CI runs it on every PR that touches Dockerfiles, Compose files or `infra/`. `KEEP=1` leaves the stack running for manual poking. `--down` removes it.
 
 ## 3. CI/CD pipelines (GitHub Actions)
 
 | Workflow | Trigger | Jobs |
 |---|---|---|
-| `ci.yml` | PRs, pushes to `main` | **backend:** `uv sync --locked` → Ruff → mypy → `makemigrations --check` → pytest + coverage (Postgres 18 + Redis services) · **frontend:** `pnpm install --frozen-lockfile` → ESLint → Prettier check → `tsc` → Vitest → `next build` · **contract:** schema + types drift check · **security:** gitleaks, `pip-audit`, `pnpm audit --prod` |
-| `e2e.yml` | PRs to `main` (labelled `e2e`), pushes to `main` | Build the dev stack with Compose → Playwright → upload the report/traces as artifacts |
-| `build.yml` | Push to `main`, tags `v*` | Build the `api` and `web` prod images (Buildx, GHA cache) → Trivy scan (fail on HIGH/CRITICAL with a fix available) → push `ghcr.io/george-kibe/discord-clone-{api,web}:{sha,vX.Y.Z,main}` |
-| `deploy.yml` | `build.yml` succeeds on `main` / tag; `workflow_dispatch` | Environment `production` → SSH to the VPS → deploy script (below) → smoke test → notify |
-| Dependabot | weekly | `uv`, `npm` (pnpm), `docker`, `github-actions` ecosystems |
+| `ci.yml` | PRs, pushes to `main` | **backend:** `uv sync --locked` → Ruff → mypy → `makemigrations --check` → pytest + coverage (Postgres + Redis services) → schema drift → `pip-audit` · **frontend:** ESLint → Prettier → `tsc` → Vitest → types drift → `next build` → `pnpm audit` · **images:** build the `api`, `web` and `backup` prod targets · **e2e:** Compose stack + Playwright (incl. axe) · **rehearsal:** `rehearse-production.sh` · **secrets:** gitleaks |
+| `build.yml` | Push to `main`, tags `v*` | For `api`, `web` and `backup`: build → **Trivy** (fails on fixable HIGH/CRITICAL) → push `ghcr.io/george-kibe/discord-clone-<name>:<full-sha>` plus `main` or the version |
+| `deploy.yml` | `build.yml` succeeded on `main`; `workflow_dispatch` (any tag, e.g. to roll back) | Environment `production` → rsync `compose*.yaml` + `infra/{caddy,scripts}` → SSH → `infra/scripts/deploy.sh` |
+| Dependabot | weekly | `uv`, `npm`, `docker`, `docker-compose`, `github-actions` |
 
 Path filters skip backend jobs for frontend-only changes, and the other way round.
 
@@ -54,33 +68,30 @@ Path filters skip backend jobs for frontend-only changes, and the other way roun
 
 | Name | Type | Purpose |
 |---|---|---|
-| `DEPLOY_HOST` | variable | VPS hostname/IP |
+| `DEPLOY_HOST` | variable | VPS hostname/IP. Leave unset to keep deploys disabled |
 | `DEPLOY_USER` | variable | `deploy` |
+| `DOMAIN` | variable | Public domain (shown as the environment URL) |
 | `DEPLOY_SSH_KEY` | secret | Private key (ed25519) whose public key is in `authorized_keys` |
 | `DEPLOY_KNOWN_HOSTS` | secret | Pinned host key (no `StrictHostKeyChecking=no`) |
 | `SENTRY_AUTH_TOKEN` | secret | Upload source maps / create releases |
 
 Application secrets (Django secret key, DB password, Cloudinary, SMTP) stay **only** in `/srv/app/.env` on the server, never in GitHub.
 
-### Deploy script (run on the VPS by `deploy.yml`)
+### Deploy script: [`infra/scripts/deploy.sh`](../infra/scripts/deploy.sh)
 
-```bash
-set -euo pipefail
-cd /srv/app
-export IMAGE_TAG=<git-sha>                 # passed in by the workflow
-PREV_TAG=$(cat .current_tag 2>/dev/null || echo "")
-docker compose -f compose.yaml -f compose.prod.yaml pull
-docker compose -f compose.yaml -f compose.prod.yaml run --rm api python manage.py migrate --noinput
-docker compose -f compose.yaml -f compose.prod.yaml up -d --remove-orphans
-# wait for health (≤ 60 s), else roll back to PREV_TAG
-./infra/scripts/wait-healthy.sh || { IMAGE_TAG=$PREV_TAG docker compose ... up -d; exit 1; }
-echo "$IMAGE_TAG" > .current_tag
-docker image prune -f --filter "until=168h"
-```
+`IMAGE_TAG=<tag> ./infra/scripts/deploy.sh` (on the VPS, in `/srv/app`):
+
+1. Pull the `api`, `web`, `worker`, `beat` and `backup` images for the tag.
+2. Make sure `db` and `redis` are up. Run `migrate` with the **new** image.
+3. `docker compose up -d --wait`: every container must pass its health check within 3 minutes.
+4. Smoke-test `https://$DOMAIN/api/health/ready` and `https://$DOMAIN/`.
+5. Record the tag in `.current_tag` and prune images older than a week.
+
+If any step fails, it rolls back to the previous `.current_tag` and exits non-zero (failing the workflow).
 
 - Static files are collected at **image build** time, not at deploy.
-- Migrations must be backwards-compatible with the previous image (see DEVELOPMENT.md), so the rollback never needs a schema rollback.
-- Smoke test: `curl -fsS https://$DOMAIN/api/health/ready` and `curl -fsS https://$DOMAIN/`.
+- Migrations must be backwards-compatible with the previous image (see DEVELOPMENT.md), so a rollback never needs a schema rollback.
+- Run ad-hoc commands through [`infra/scripts/dc`](../infra/scripts/dc), which is `docker compose` with the production files and the deployed tag: `./infra/scripts/dc ps`, `./infra/scripts/dc logs -f api`.
 
 ## 4. Production images
 
@@ -91,7 +102,9 @@ docker image prune -f --filter "until=168h"
 | `caddy` | `caddy:2` | Caddyfile mounted from `infra/`. |
 | `db` | `postgres:18` (pinned minor) | Tuned via the `command:` args (`shared_buffers=512MB`, etc.). |
 | `redis` | `redis:8.x` (pinned minor) | `--appendonly yes --maxmemory 256mb --maxmemory-policy noeviction` (noeviction protects the Celery queue). |
-| `backup` | small Alpine image with `postgresql18-client` + `rclone`/`aws-cli` | Cron at 03:00 UTC. |
+| `backup` | `postgres:18.6` (matching `pg_dump`) + `age` + `rclone` 1.75 | Daily at `BACKUP_TIME_UTC`. Runs as `postgres`. |
+
+All images run as non-root users and drop tooling they don't use at runtime: pip from `api`, npm/corepack from `web`, `gosu` from `backup`. That also removes those tools' vendored dependencies, which Trivy flagged. Images are rebuilt on every deploy, so OS patches flow in through the pinned base tags (Dependabot keeps them current).
 
 ### Resource limits (initial, 4 GB host)
 
@@ -110,32 +123,48 @@ Differences from development (see the full table in [DEVELOPMENT.md](DEVELOPMENT
 
 - `ENVIRONMENT=production`, `DJANGO_SETTINGS_MODULE=config.settings.prod`, `DJANGO_DEBUG=false`
 - Strong unique values for `DJANGO_SECRET_KEY` and `POSTGRES_PASSWORD` (`openssl rand -base64 48`)
-- `DJANGO_ALLOWED_HOSTS=<domain>,api`, `DJANGO_CSRF_TRUSTED_ORIGINS=https://<domain>`
+- `DJANGO_ALLOWED_HOSTS=<domain>,api,localhost` (`api` for server-side rendering, `localhost` for container health checks), `DJANGO_CSRF_TRUSTED_ORIGINS=https://<domain>`
 - `CLOUDINARY_FOLDER_PREFIX=prod`, the real `EMAIL_URL`, `SENTRY_DSN`
-- Backup settings: `BACKUP_S3_ENDPOINT`, `BACKUP_S3_BUCKET`, `BACKUP_S3_ACCESS_KEY`, `BACKUP_S3_SECRET_KEY`, `BACKUP_ENCRYPTION_PASSPHRASE`
+- Backups: `BACKUP_AGE_RECIPIENT`, `BACKUP_REMOTE` (e.g. `:s3:bucket/discord-clone`), `RCLONE_S3_*` (provider, endpoint, region, keys), optional `BACKUP_HEARTBEAT_URL` and `BACKUP_TIME_UTC`
+- HSTS: Caddy sends `HSTS_VALUE` (default 1 day) on frontend responses, and Django sends `DJANGO_SECURE_HSTS_SECONDS` on API responses. Raise both to a year once HTTPS is stable.
+
+The full template is [`infra/env.production.example`](../infra/env.production.example).
 
 `config.settings.prod` enforces: `SECURE_SSL_REDIRECT`, `SECURE_HSTS_SECONDS` (start at 1 day, raise to 1 year), secure cookies, `SECURE_PROXY_SSL_HEADER` (trusting Caddy), and `manage.py check --deploy` passing at startup.
 
 ## 6. Backups & restore
 
-- **What:** a nightly `pg_dump --format=custom`, encrypted with `age`/`gpg`, uploaded to off-site S3-compatible storage. Redis is not backed up (ephemeral). Media is already in Cloudinary.
-- **Retention:** 7 daily, 4 weekly, 3 monthly (bucket lifecycle rules plus naming).
-- **Monitoring:** the backup job pings a heartbeat URL (e.g. healthchecks.io) on success, so a missing ping raises an alert.
+- **What:** a nightly `pg_dump --format=custom`, encrypted with **age** to a public key (the private key is never on the server), uploaded with **rclone** to any S3-compatible bucket (Backblaze B2, Cloudflare R2, AWS S3…). Redis is not backed up (ephemeral). Media is already in Cloudinary.
+- **Where:** `<remote>/daily/`, plus `weekly/` on Sundays and `monthly/` on the 1st.
+- **Retention:** 7 daily, 4 weekly, 3 monthly. Old objects are deleted by the backup job itself, so no bucket lifecycle rules are needed.
+- **Monitoring:** after each run the job pings `BACKUP_HEARTBEAT_URL` (e.g. healthchecks.io), or `<url>/fail` on errors, so a missed or failed backup raises an alert.
+- **Ad hoc:** `./infra/scripts/dc run --rm backup run-once`.
 
 ### Restore runbook
 
+The private key file should stay `chmod 600`. Running the restore container with your own uid (`--user`) lets it read the key.
+
 ```bash
-# 1. fetch + decrypt the dump
-rclone copy remote:bucket/daily/app-YYYYMMDD.dump.age . && age -d -o app.dump app-YYYYMMDD.dump.age
-# 2. stop writers
-docker compose -f compose.yaml -f compose.prod.yaml stop api worker beat web
-# 3. restore
-docker compose ... exec -T db pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists < app.dump
-# 4. start + verify
-docker compose ... up -d && curl -fsS https://$DOMAIN/api/health/ready
+cd /srv/app
+# List what's available
+./infra/scripts/dc run --rm backup restore.sh list
+# Restore drill: newest backup into a scratch database (safe while the site runs)
+./infra/scripts/dc run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
+  -v ~/discord-clone-backup-key.txt:/key.txt:ro -e BACKUP_AGE_IDENTITY=/key.txt \
+  backup restore.sh latest restore_drill
+./infra/scripts/dc exec db psql -U app -d restore_drill -c 'select count(*) from accounts_user'
+./infra/scripts/dc exec db dropdb -U app restore_drill
+
+# Real restore into the live database: stop the writers first
+./infra/scripts/dc stop api worker beat web
+./infra/scripts/dc run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
+  -v ~/discord-clone-backup-key.txt:/key.txt:ro -e BACKUP_AGE_IDENTITY=/key.txt \
+  backup restore.sh latest            # or daily/app-<timestamp>.dump.age
+./infra/scripts/dc up -d --wait && curl -fsS https://$DOMAIN/api/health/ready
+rm ~/discord-clone-backup-key.txt     # don't leave the private key on the server
 ```
 
-**Drill:** quarterly, restore into a scratch database (`docker run postgres:18`) and run sanity queries. Record the date in the ops log.
+**Drill:** quarterly, run the restore drill above and record the date in the ops log. The rehearsal script performs the same drill on every infra change.
 
 ## 7. Monitoring & alerting
 
@@ -144,25 +173,26 @@ docker compose ... up -d && curl -fsS https://$DOMAIN/api/health/ready
 | Uptime (`/api/health/ready`, `/`) | External monitor, 1-min interval | Email |
 | Application errors | Sentry (backend, Celery, Next.js) | Email (new issues, spikes) |
 | Backup success | Heartbeat ping | Email on a missed ping |
-| Disk > 80 %, memory pressure | Small cron script on the host → heartbeat/email | Email |
+| Disk > 80 %, memory > 90 %, unhealthy containers | [`infra/scripts/host-health.sh`](../infra/scripts/host-health.sh) every 10 min from cron → `HOST_HEARTBEAT_URL` (`/fail` on problems) | Email |
 | TLS expiry | Caddy auto-renews. The uptime monitor checks certificate expiry | Email |
 
 ## 8. Routine operations
 
 | Task | Command |
 |---|---|
-| View logs | `docker compose -f compose.yaml -f compose.prod.yaml logs -f --tail=200 api` |
-| Django shell | `… exec api python manage.py shell` |
+| View logs | `./infra/scripts/dc logs -f --tail=200 api` |
+| Django shell | `./infra/scripts/dc exec api python manage.py shell` |
+| Backup now | `./infra/scripts/dc run --rm backup run-once` |
 | Manual rollback | Re-run `deploy.yml` with `workflow_dispatch` and an older image tag |
-| Rotate the secret key | Update `.env` → `up -d` (logs everyone out) |
+| Rotate the secret key | Update `.env` → `./infra/scripts/dc up -d` (logs everyone out) |
 | Postgres minor upgrade | Bump the pinned tag → deploy (volume compatible) |
 | Postgres major upgrade | `pg_dump` → new volume on the new major → `pg_restore` (planned maintenance) |
-| Scale workers | Change `CELERY_CONCURRENCY` / `UVICORN_WORKERS` in `.env` → `up -d` |
+| Scale workers | Change `CELERY_CONCURRENCY` / `UVICORN_WORKERS` in `.env` → `./infra/scripts/dc up -d` |
 
 ## 9. Incident checklist
 
 1. Check the uptime monitor and Sentry for scope and timing.
-2. `docker compose ps` for unhealthy containers, and `logs` for errors.
+2. `./infra/scripts/dc ps` for unhealthy containers, and `./infra/scripts/dc logs` for errors.
 3. If a recent deploy is the likely cause, **roll back first**, investigate after.
 4. Check host resources: `df -h`, `free -m`, `docker stats`.
 5. Data issue → stop writers, take an ad-hoc `pg_dump`, then fix.
