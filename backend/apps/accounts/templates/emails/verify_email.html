@@ -1,0 +1,8 @@
+{% extends "emails/base.html" %}
+{% block title %}Verify your email address{% endblock %}
+{% block content %}
+<p style="margin:0 0 12px;font-size:16px;">Hi {{ name }},</p>
+<p style="margin:0;font-size:15px;line-height:1.5;">Welcome! Please confirm your email address to start chatting.</p>
+{% include "emails/_button.html" with label="Verify email" %}
+<p style="margin:16px 0 0;font-size:13px;color:#4f5660;">The link expires in 3 days. If you didn't create an account, you can ignore this email.</p>
+{% endblock %}

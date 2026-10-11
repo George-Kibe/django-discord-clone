@@ -24,7 +24,7 @@ Lightweight ADRs. Each records a decision, its context and its consequences. ADR
 | 003 | Version policy: LTS where it exists, pinned everywhere | Accepted |
 | 004 | Decoupled DRF API + Next.js App Router frontend | Accepted |
 | 005 | Single origin behind Caddy | Accepted |
-| 006 | JWT in httpOnly cookies (SimpleJWT) | Accepted |
+| 006 | JWT in httpOnly cookies (SimpleJWT) | Accepted (refined by ADR-022) |
 | 007 | Django Channels: REST for writes, WebSocket for push | Accepted |
 | 008 | Celery + Redis for background work | Accepted (amended by ADR-021) |
 | 009 | PostgreSQL 18 without PostGIS | Accepted |
@@ -40,6 +40,7 @@ Lightweight ADRs. Each records a decision, its context and its consequences. ADR
 | 019 | Conventional Commits, SemVer, Keep a Changelog | Accepted |
 | 020 | shadcn/ui + TanStack Query on the frontend | Accepted |
 | 021 | Celery beat with a static schedule (no django-celery-beat) | Accepted |
+| 022 | Signed-in app fetches user data client-side; `session` hint cookie | Accepted |
 
 ---
 
@@ -345,4 +346,21 @@ Use Celery's built-in beat scheduler with the schedule declared in `CELERY_BEAT_
 - One less dependency and no beat tables. Schedules are reviewed in code like everything else.
 - Changing a schedule needs a deploy. That's acceptable at this scale.
 - Revisit if runtime-editable schedules are ever needed and `django-celery-beat` supports the Django version in use.
+
+## ADR-022: Signed-in app fetches user data client-side; `session` hint cookie
+- **Status:** Accepted (refines ADR-006)
+- **Date:** 2026-10-11
+
+### Context
+ADR-006 scopes the refresh cookie to `/api/v1/auth`, so the browser only sends it to auth endpoints. A Next.js server component rendering `/channels/...` therefore never sees the refresh token. When the 15-minute access token expires, server-side rendering can't refresh it, and Server Components can't set cookies anyway. With Cache Components, session reads must also sit behind `<Suspense>`, so server rendering wouldn't speed up the first paint of the signed-in app.
+
+### Decision
+- The signed-in app (`/channels/*`, `/settings/*`) prerenders a static shell and loads user data in the browser with TanStack Query. The browser API client adds the CSRF header and does one single-flight `POST /auth/refresh` on a 401, then retries the request.
+- Login and refresh also set `session=1`: a non-httpOnly, non-secret cookie with the refresh token's lifetime. `proxy.ts` uses it to gate routes. Logout and failed refreshes clear it.
+- Public pages (landing, auth, discovery) remain server-rendered.
+
+### Consequences
+- Expired access tokens never surface to users. The refresh token never leaves the auth path.
+- The signed-in UI shows a short loading state on a full page load. Client navigations are instant.
+- The hint cookie can be forged, but that only renders an empty shell that immediately fails its API calls. Every authorization decision stays in the API.
 

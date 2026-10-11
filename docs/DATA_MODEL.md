@@ -52,7 +52,7 @@ servers.Server ──< Invite, Ban, ServerAuditEvent;  servers.Server >── se
 
 ### AuthAuditEvent
 
-`id, user (FK, nullable), email_attempted, event (login|logout|login_failed|password_changed|password_reset|email_changed|token_refresh_reuse), ip, user_agent, created_at`. Indexed on `(user, created_at)` and `(ip, created_at)`. Rows older than 90 days are pruned.
+`id (bigint), user (FK, nullable), email_attempted, event (registered|email_verified|login|logout|login_failed|password_changed|password_reset|email_changed|token_refresh_reuse), ip, user_agent, created_at`. Indexed on `(user, created_at)` and `(ip, created_at)`. Rows older than 90 days are pruned.
 
 ### BlockedUser
 

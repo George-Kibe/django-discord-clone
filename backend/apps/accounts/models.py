@@ -96,3 +96,38 @@ class User(UUIDModel, AbstractUser):
     @property
     def is_email_verified(self) -> bool:
         return self.email_verified_at is not None
+
+
+class AuthAuditEvent(models.Model):
+    """Security-relevant authentication events (FR-AUTH-08). Pruned after 90 days."""
+
+    class Event(models.TextChoices):
+        REGISTERED = "registered", "Registered"
+        EMAIL_VERIFIED = "email_verified", "Email verified"
+        LOGIN = "login", "Logged in"
+        LOGIN_FAILED = "login_failed", "Login failed"
+        LOGOUT = "logout", "Logged out"
+        PASSWORD_CHANGED = "password_changed", "Password changed"
+        PASSWORD_RESET = "password_reset", "Password reset"
+        EMAIL_CHANGED = "email_changed", "Email changed"
+        TOKEN_REFRESH_REUSE = "token_refresh_reuse", "Refresh token reuse detected"
+
+    id = models.BigAutoField(primary_key=True)
+    user = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="auth_events"
+    )
+    email_attempted = models.CharField(max_length=254, blank=True)
+    event = models.CharField(max_length=32, choices=Event.choices)
+    ip = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=512, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "created_at"]),
+            models.Index(fields=["ip", "created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.get_event_display()} ({self.email_attempted or self.user_id})"

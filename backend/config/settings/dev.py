@@ -17,3 +17,13 @@ LOGGING["handlers"]["stdout"]["formatter"] = env("LOG_FORMAT", default="console"
 STORAGES["staticfiles"] = {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"}
 WHITENOISE_USE_FINDERS = True
 WHITENOISE_AUTOREFRESH = True
+
+# Generous auth throttles locally so repeated manual/E2E runs don't lock you out.
+# Unit tests run with the real limits from base.py.
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] |= {
+    "auth_login": "100/min",
+    "auth_login_email": "1000/hour",
+    "auth_register": "1000/hour",
+    "auth_password_reset": "1000/hour",
+    "auth_verification": "1000/hour",
+}

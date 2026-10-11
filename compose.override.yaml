@@ -10,6 +10,8 @@ x-backend-dev: &backend-dev
   image: discord-clone-api:dev
   environment:
     DJANGO_SETTINGS_MODULE: config.settings.dev
+    # Dev email goes to Mailpit unless .env sets EMAIL_URL explicitly (E2E reads Mailpit).
+    EMAIL_URL: ${EMAIL_URL:-smtp://mailpit:1025}
   volumes:
     - ./backend:/app
 
@@ -31,7 +33,12 @@ services:
       - web_node_modules:/app/node_modules
       - web_next:/app/.next
     healthcheck:
-      disable: true
+      # Static file: answers without triggering a dev-mode page compile.
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/robots.txt').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   api:
     <<: *backend-dev

@@ -1,0 +1,9 @@
+{% autoescape off %}
+Hi {{ name }},
+
+Welcome! Please confirm your email address by opening this link:
+
+{{ link }}
+
+The link expires in 3 days. If you didn't create an account, you can ignore this email.
+{% endautoescape %}

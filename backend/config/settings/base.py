@@ -1,9 +1,11 @@
 """Settings shared by every environment. Environment-specific modules import * from here."""
 
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
 import environ
+from celery.schedules import crontab
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -15,6 +17,9 @@ SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env.bool("DJANGO_DEBUG", default=False)
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost"])
 CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=["http://localhost"])
+
+# Public URL of the frontend; used to build links in emails.
+SITE_URL = env("NEXT_PUBLIC_SITE_URL", default="http://localhost").rstrip("/")
 
 # --------------------------------------------------------------------------- applications
 
@@ -38,6 +43,7 @@ LOCAL_APPS = [
     "apps.core",
     "apps.accounts",
     "apps.realtime",
+    "apps.media",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
@@ -104,7 +110,27 @@ PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.ScryptPasswordHasher",
 ]
 
-AUTH_PASSWORD_VALIDATORS = [
+# JWTs live only in httpOnly cookies (ADR-006). See apps/accounts/cookies.py.
+SIMPLE_JWT: dict[str, Any] = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=env.int("JWT_ACCESS_MINUTES", default=15)),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=env.int("JWT_REFRESH_DAYS", default=14)),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": False,  # handled by Django's user_logged_in signal
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id",
+}
+AUTH_COOKIE_SECURE = env.bool("AUTH_COOKIE_SECURE", default=False)
+AUTH_COOKIE_SAMESITE = "Lax"
+# A concurrent refresh from another tab within this window is not treated as token theft.
+AUTH_REFRESH_REUSE_GRACE_SECONDS = 30
+
+PASSWORD_RESET_TIMEOUT = 60 * 60  # FR-AUTH-05: reset links expire after 1 hour
+EMAIL_VERIFICATION_MAX_AGE = 60 * 60 * 24 * 3
+UNVERIFIED_ACCOUNT_TTL_DAYS = 7  # FR-AUTH-02
+AUTH_AUDIT_RETENTION_DAYS = 90  # NFR-PRIV-01
+
+AUTH_PASSWORD_VALIDATORS: list[dict[str, Any]] = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
@@ -132,8 +158,8 @@ STORAGES: dict[str, dict[str, Any]] = {
 
 REST_FRAMEWORK: dict[str, Any] = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        # JWT cookie authentication is added in Phase 1 (ADR-006).
-        "rest_framework.authentication.SessionAuthentication",
+        "apps.accounts.authentication.JWTCookieAuthentication",
+        "rest_framework.authentication.SessionAuthentication",  # Django admin users
     ],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
@@ -143,7 +169,18 @@ REST_FRAMEWORK: dict[str, Any] = {
     "PAGE_SIZE": 50,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "apps.core.exceptions.exception_handler",
-    "DEFAULT_THROTTLE_RATES": {"user": "120/min", "anon": "30/min"},
+    "TEST_REQUEST_DEFAULT_FORMAT": "json",
+    # Initial limits from docs/API.md §1 "Rate limits".
+    "DEFAULT_THROTTLE_RATES": {
+        "user": "120/min",
+        "anon": "30/min",
+        "auth_login": "5/min",
+        "auth_login_email": "10/hour",
+        "auth_register": "5/hour",
+        "auth_password_reset": "5/hour",
+        "auth_verification": "10/hour",
+        "media_sign": "30/min",
+    },
 }
 
 SPECTACULAR_SETTINGS: dict[str, Any] = {
@@ -155,6 +192,10 @@ SPECTACULAR_SETTINGS: dict[str, Any] = {
     "SERVE_INCLUDE_SCHEMA": False,
     "SCHEMA_PATH_PREFIX": r"/api/v[0-9]+",
     "COMPONENT_SPLIT_REQUEST": True,
+    "ENUM_NAME_OVERRIDES": {
+        "UserStatusEnum": "apps.accounts.models.User.Status",
+        "HealthStatusEnum": ["ok", "error"],
+    },
 }
 
 # --------------------------------------------------------------------------- Celery
@@ -172,14 +213,36 @@ CELERY_TASK_TIME_LIMIT = 5 * 60
 CELERY_TASK_SOFT_TIME_LIMIT = 4 * 60
 CELERY_TASK_DEFAULT_QUEUE = "default"
 CELERY_TIMEZONE = TIME_ZONE
-# Static schedule (ADR-021). Phase-specific maintenance tasks are added here as they land.
-CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {}
+# Static schedule (ADR-021). Each phase adds its maintenance tasks here.
+CELERY_BEAT_SCHEDULE: dict[str, dict[str, Any]] = {
+    "accounts.delete_stale_unverified_users": {
+        "task": "accounts.delete_stale_unverified_users",
+        "schedule": crontab(hour=3, minute=10),
+    },
+    "accounts.prune_auth_audit_log": {
+        "task": "accounts.prune_auth_audit_log",
+        "schedule": crontab(hour=3, minute=20),
+    },
+    "accounts.flush_expired_tokens": {
+        "task": "accounts.flush_expired_tokens",
+        "schedule": crontab(hour=3, minute=30),
+    },
+    "media.cleanup_orphaned_uploads": {
+        "task": "media.cleanup_orphaned_uploads",
+        "schedule": crontab(hour=3, minute=40),
+    },
+}
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
 # --------------------------------------------------------------------------- integrations
 
-CLOUDINARY_URL = env("CLOUDINARY_URL", default="")
+# The Cloudinary SDK reads CLOUDINARY_URL from the environment itself (ADR-010).
 CLOUDINARY_FOLDER_PREFIX = env("CLOUDINARY_FOLDER_PREFIX", default=ENVIRONMENT)
+MEDIA_UPLOAD_RULES: dict[str, dict[str, Any]] = {
+    # purpose: max bytes, allowed formats (FR-PROF-02, FR-MSG-10)
+    "avatar": {"max_bytes": 5 * 1024 * 1024, "formats": ["jpg", "jpeg", "png", "webp", "gif"]},
+}
+PENDING_UPLOAD_TTL_HOURS = 24
 
 # Django 6.1 replaces the EMAIL_* settings with MAILERS. EMAIL_URL (e.g. smtp+tls://user:pass@host:587)
 # is parsed by django-environ and translated into the new structure.

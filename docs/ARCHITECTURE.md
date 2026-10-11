@@ -57,7 +57,7 @@ This document describes **how** the system is built. Requirements are in [REQUIR
 - Built with `output: "standalone"` and run with Node 24 LTS in a slim non-root image.
 - **Rendering strategy**
   - Marketing/landing, login, register and public discovery pages: Server Components, server-rendered.
-  - The app shell (`/channels/...`): a server-rendered layout (it checks the session and preloads the server list) that hosts client components for the interactive chat UI.
+  - The signed-in app (`/channels/...`, `/settings/...`): the static shell is prerendered and user data is fetched in the browser (TanStack Query), so an expired access token can be refreshed silently (ADR-022).
   - Server-side data fetching calls the API over the internal Docker network (`http://api:8000`) and forwards the user's cookies.
 - **Client state**
   - *Server state:* TanStack Query caches REST data. WebSocket events patch the query cache directly, so no refetch is needed.
@@ -66,19 +66,20 @@ This document describes **how** the system is built. Requirements are in [REQUIR
 - **Forms:** React Hook Form + Zod. Zod schemas mirror the API validation.
 - **UI kit:** shadcn/ui components (Radix primitives) styled with Tailwind, plus `lucide-react` icons.
 - **API types:** generated from the backend OpenAPI schema with `openapi-typescript`. A thin typed `fetch` wrapper attaches the CSRF header and handles `401` responses with one silent refresh and a retry (ADR-017).
-- **Middleware/proxy:** a lightweight check redirects unauthenticated users away from `/channels/*`. Real authorization always happens in the API.
+- **Proxy (`src/proxy.ts`, formerly "middleware"):** uses the non-secret `session` hint cookie to redirect signed-out visitors away from `/channels/*` and `/settings/*`, and signed-in users away from `/login` and `/register`. Real authorization always happens in the API.
 
 Frontend source layout:
 
 ```
 frontend/src/
 ├── app/                    # Routes (App Router)
-│   ├── (marketing)/        # Landing page
-│   ├── (auth)/             # login, register, verify-email, reset-password
-│   ├── discover/           # Public server discovery
-│   └── channels/
-│       ├── @me/[dmId]/     # Direct messages
-│       └── [serverId]/[channelId]/
+│   ├── page.tsx            # Landing page (server-rendered)
+│   ├── (auth)/             # login, register, verify-email, forgot-password, reset-password
+│   ├── (app)/              # Signed-in app (client-fetched data, ADR-022)
+│   │   ├── channels/me/    # Home + direct messages ("@me" can't be a folder: it means a parallel route)
+│   │   ├── channels/[serverId]/[channelId]/
+│   │   └── settings/       # profile, account
+│   └── discover/           # Public server discovery
 ├── components/             # Shared UI (ui/ = shadcn primitives)
 ├── features/               # Feature modules: auth, servers, channels, messages, dms, polls, presence…
 │   └── <feature>/{api.ts, hooks.ts, components/, schemas.ts}
@@ -201,20 +202,23 @@ AOF persistence is enabled in production so queued Celery jobs survive a restart
 
 ```
 Browser                         Next.js (web)                 Django (api)
-  │ POST /api/v1/auth/login {email,pw} ───────────────────────▶│ verify, rate-limit, audit
-  │◀──────── 200 + Set-Cookie: access (15 min), refresh (14 d, path=/api/v1/auth), csrftoken
-  │ GET /channels/... ─────────────▶│ server component: forward cookies
-  │                                 │ GET http://api:8000/api/v1/users/me ─▶│
-  │◀──────── HTML ──────────────────│◀──────────────────────────────────────│
-  │ (access token expires)          │
-  │ GET /api/v1/... ──────────────────────────────────────────▶│ 401 token_expired
-  │ POST /api/v1/auth/refresh (refresh cookie) ───────────────▶│ rotate + blacklist old
-  │◀──────── new cookies; client retries the original request
+  │ GET /api/v1/auth/csrf ────────────────────────────────────▶│ sets csrftoken
+  │ POST /api/v1/auth/login {email,pw} + X-CSRFToken ─────────▶│ verify, rate-limit, audit
+  │◀── 200 + Set-Cookie: access (15 min), refresh (14 d, path=/api/v1/auth), session=1 (hint)
+  │ GET /channels/me ──────────────▶│ proxy.ts: session hint present → render static shell
+  │◀──────── HTML shell ────────────│
+  │ GET /api/v1/users/me (cookies) ───────────────────────────▶│ 200
+  │ … 15 min later the browser drops the expired access cookie …
+  │ GET /api/v1/users/me ─────────────────────────────────────▶│ 401
+  │ POST /api/v1/auth/refresh (refresh cookie, single-flight) ▶│ rotate + blacklist old
+  │◀──────── new cookies; the client retries the original request once
 ```
 
-- Cookies: `access` and `refresh` are `HttpOnly; Secure; SameSite=Lax`. The refresh cookie is scoped to `Path=/api/v1/auth`.
-- CSRF: Django's CSRF middleware stays on for cookie-authenticated unsafe requests. The frontend reads the non-httpOnly `csrftoken` cookie and sends `X-CSRFToken`.
-- Refresh tokens rotate on every use. Old ones are blacklisted. Logout blacklists the current refresh token and clears the cookies.
+- Cookies: `access` and `refresh` are `HttpOnly; Secure; SameSite=Lax`. The refresh cookie is scoped to `Path=/api/v1/auth`, so only auth endpoints ever receive it. A third cookie, `session=1`, is readable by JavaScript and the proxy. It carries no secret and only says "probably signed in", for routing.
+- CSRF: every unsafe request on a cookie-authenticated or anonymous auth endpoint needs `X-CSRFToken` (double submit with the `csrftoken` cookie, plus Django's Origin check). The exception is `POST /auth/refresh`: it only reads the path-restricted refresh cookie and returns nothing an attacker could read.
+- Refresh tokens rotate on every use. Old ones are blacklisted. Replaying a rotated token more than 30 s after rotation (a shorter gap is treated as another tab refreshing at the same time) revokes all of that user's sessions and is audited. A failed refresh clears all auth cookies.
+- Password reset/change revokes every refresh token. A password change issues fresh cookies, so the current session stays signed in.
+- WebSockets: `JWTCookieAuthMiddleware` resolves the user from the `access` cookie. The authenticated gateway `/ws/` accepts, then closes with `4401` for anonymous users. `/ws/ping/` stays public as a connectivity check.
 
 ### 3.2 Sending a message (ADR-007)
 

@@ -33,9 +33,11 @@ dev = [
     "pytest-cov",
     "factory-boy>=3.3.3",
     "ruff",
+    # mypy is capped by the stubs' compatible-mypy extras; the floors stop the resolver from
+    # backtracking to ancient, uncapped stub releases to satisfy a newer mypy.
     "mypy",
-    "django-stubs[compatible-mypy]",
-    "djangorestframework-stubs[compatible-mypy]",
+    "django-stubs[compatible-mypy]>=6.1.2",
+    "djangorestframework-stubs[compatible-mypy]>=3.18.1",
     "celery-types",
     "django-debug-toolbar",
     "daphne",  # required by channels.testing
@@ -68,6 +70,7 @@ ignore = ["RUF012"]  # mutable class attrs are idiomatic in Django/DRF Meta clas
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["S101", "S105", "S106"]
+"conftest.py" = ["S101", "S105", "S106"]
 "config/settings/*" = ["F405", "F403"]
 
 # ---------------------------------------------------------------- mypy

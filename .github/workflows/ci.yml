@@ -171,12 +171,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
-      - name: Start stack
-        run: |
-          cp .env.example .env
-          # Dev containers run as uid 1000; the runner checkout is owned by uid 1001.
-          chmod -R a+rwX frontend backend
-          docker compose up -d --build --wait --wait-timeout 300
+      # Install host-side test deps first: once the stack is up, Docker owns frontend/node_modules
+      # (it is the mount point of the web container's node_modules volume).
       - uses: pnpm/action-setup@v6
         with:
           package_json_file: frontend/package.json
@@ -190,6 +186,12 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
           pnpm exec playwright install --with-deps chromium
+      - name: Start stack
+        run: |
+          cp .env.example .env
+          # Dev containers run as uid 1000; the runner checkout is owned by uid 1001.
+          chmod -R a+rwX frontend backend
+          docker compose up -d --build --wait --wait-timeout 300
       - name: Run E2E
         working-directory: frontend
         run: pnpm e2e

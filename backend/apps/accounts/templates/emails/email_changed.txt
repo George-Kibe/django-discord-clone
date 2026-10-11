@@ -1,0 +1,7 @@
+{% autoescape off %}
+Hi {{ name }},
+
+The email address on your account was changed to {{ new_email }}.
+
+If you didn't do this, reset your password immediately at {{ site_url }}/forgot-password and contact support.
+{% endautoescape %}

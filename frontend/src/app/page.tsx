@@ -1,4 +1,5 @@
 import { MessagesSquare } from "lucide-react";
+import Link from "next/link";
 import { Suspense } from "react";
 
 import { ApiStatus } from "@/components/api-status";
@@ -27,9 +28,11 @@ export default function Home() {
       </section>
 
       <div className="flex flex-wrap justify-center gap-3">
-        <Button disabled>Sign in (Phase 1)</Button>
+        <Button asChild>
+          <Link href="/register">Create an account</Link>
+        </Button>
         <Button variant="outline" asChild>
-          <a href="/api/docs/">API docs</a>
+          <Link href="/login">Sign in</Link>
         </Button>
       </div>
     </main>

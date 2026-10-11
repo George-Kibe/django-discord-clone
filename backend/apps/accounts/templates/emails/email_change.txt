@@ -1,0 +1,9 @@
+{% autoescape off %}
+Hi {{ name }},
+
+You asked to change your account email to {{ new_email }}. Confirm the change by opening this link:
+
+{{ link }}
+
+The link expires in 3 days. If you didn't ask for this, you can ignore this email; nothing will change.
+{% endautoescape %}

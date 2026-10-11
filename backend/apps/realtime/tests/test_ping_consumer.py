@@ -3,6 +3,9 @@ from channels.testing import WebsocketCommunicator
 
 from config.asgi import application
 
+# Channels closes stale DB connections on every event, so DB access must be allowed.
+pytestmark = pytest.mark.django_db
+
 ORIGIN = [(b"origin", b"http://localhost")]
 
 
