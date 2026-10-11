@@ -29,4 +29,6 @@ REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] |= {
     "auth_register": "1000/hour",
     "auth_password_reset": "1000/hour",
     "auth_verification": "1000/hour",
+    "message_send": "1000/min",
+    "invite_create": "1000/hour",
 }

@@ -73,8 +73,10 @@ fmt: ## Auto-format backend and frontend
 	$(API) sh -c "ruff check --fix . && ruff format ."
 	$(WEB) pnpm format
 
-gen-api: ## Regenerate backend/schema.yaml and frontend/src/types/api.d.ts
+gen-api: ## Regenerate backend/schema.yaml, frontend API types and permission constants
 	$(API) python manage.py spectacular --validate --fail-on-warn --file schema.yaml
+	$(API) python manage.py export_permissions /tmp/permissions.ts
+	$(COMPOSE) cp api:/tmp/permissions.ts frontend/src/types/permissions.ts
 	$(WEB) pnpm gen:api
 
 check: lint test ## Everything CI runs (except E2E)

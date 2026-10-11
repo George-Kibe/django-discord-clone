@@ -28,9 +28,9 @@ from .serializers import (
     MeUpdateSerializer,
     PasswordChangeSerializer,
     PasswordResetConfirmSerializer,
-    PublicUserSerializer,
     RegisterSerializer,
     TokenSerializer,
+    UserProfileSerializer,
 )
 from .throttles import IPScopedThrottle, LoginEmailThrottle
 from .tokens import rotate_refresh_token
@@ -270,7 +270,7 @@ def _replace_avatar(user: User, public_id: str) -> None:
 
 class UserDetailView(RetrieveAPIView[User]):
     queryset = User.objects.filter(is_active=True)
-    serializer_class = PublicUserSerializer
+    serializer_class = UserProfileSerializer
 
     @extend_schema(tags=USER_TAGS)
     def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:

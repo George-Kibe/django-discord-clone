@@ -98,7 +98,7 @@ Email verification and password reset tokens are stateless signed tokens (Django
 
 ### Invite
 
-`code (varchar(10), PK, random base62), server, channel (nullable), inviter (FK User), max_uses (nullable), uses, expires_at (nullable), revoked_at (nullable)`.
+`code (varchar(10), PK, 8 random base62 characters), server, channel (nullable), inviter (FK User), max_uses (nullable = unlimited), uses, expires_at (nullable = never), revoked_at (nullable)`. Accepting an invite you're already covered by doesn't consume a use.
 
 ### Ban
 

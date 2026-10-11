@@ -70,7 +70,7 @@ Make targets wrap the long `docker compose` commands:
 | `make e2e` | `pnpm --dir frontend exec playwright test` | E2E against the running stack |
 | `make lint` | Ruff, mypy, ESLint, Prettier check, `tsc` | |
 | `make fmt` | Ruff format + fix, Prettier write | |
-| `make gen-api` | export the OpenAPI schema → `pnpm gen:api` | Regenerate frontend types |
+| `make gen-api` | export the OpenAPI schema → `pnpm gen:api`, plus `export_permissions` | Regenerate frontend API types and permission constants |
 | `make reset-db` | drop the database volume and recreate it | ⚠ destroys local data |
 
 ### Adding dependencies

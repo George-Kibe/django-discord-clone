@@ -108,3 +108,16 @@ def test_is_email_verified_permission(user, unverified_user):
     assert permission.has_permission(request, None)
     request.user = unverified_user
     assert not permission.has_permission(request, None)
+
+
+def test_public_profile_lists_mutual_servers(client_for, user, make_user):
+    from apps.servers.services import add_member, create_server
+
+    other = make_user()
+    shared = create_server(owner=user, name="Shared")
+    add_member(shared, other)
+    create_server(owner=other, name="Theirs only")
+    create_server(owner=user, name="Mine only")
+    body = client_for(user).get(reverse("users-detail", args=[other.id])).json()
+    assert [s["name"] for s in body["mutual_servers"]] == ["Shared"]
+    assert set(body["mutual_servers"][0]) == {"id", "name", "icon_url"}

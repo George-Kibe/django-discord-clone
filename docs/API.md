@@ -30,10 +30,10 @@ This document covers the conventions behind that schema, the endpoint map, and t
 
 ### Pagination
 
-- **Cursor pagination** for messages, notifications and audit logs:
+- **Cursor pagination** for messages (implemented in Phase 3), notifications and audit logs:
   - `GET /channels/{id}/messages?limit=50` → newest first
   - `?before=<message_id>` (older history) or `?after=<message_id>` (backfill after reconnect)
-  - Response: `{ "results": [...], "next": "<cursor|null>", "previous": "<cursor|null>" }`
+  - Messages respond with `{ "results": [...], "has_more": bool }`. Without a cursor or with `before`, results are newest first. With `after`, they are oldest first (backfill). The cursor is simply a message id (UUIDv7, time-ordered).
 - **Page-number pagination** (`?page=&page_size=`, max 100) for small, stable lists (discovery, members).
 
 ### Filtering, search, ordering
@@ -103,7 +103,7 @@ Request and response shapes are in the OpenAPI schema. ✱ = requires a verified
 | PUT/DELETE | `/users/me/avatar` | Attach an upload from `/media/sign` (`{public_id}`) / remove the avatar |
 | DELETE | `/users/me` | Delete account |
 | GET | `/users/me/export` | Data export (JSON) |
-| GET | `/users/{id}` | Public profile card (+ mutual servers) |
+| GET | `/users/{id}` | Public profile card, incl. `mutual_servers` with the viewer |
 | GET/POST/DELETE | `/users/me/blocks[/{user_id}]` | Block list |
 
 ### Servers — `/api/v1/servers/`
@@ -129,7 +129,8 @@ Request and response shapes are in the OpenAPI schema. ✱ = requires a verified
 | POST | `/invites/{code}/accept` ✱ | Join via invite |
 | GET | `/servers/{id}/audit-log` | VIEW_AUDIT_LOG |
 | GET | `/discover/servers` | Public servers (`?q=&topic=`) |
-| GET | `/topics` | Topic list |
+| GET | `/topics` | Topic list (seeded) |
+| GET | `/permissions` | Permission bits with descriptions (role editor). The frontend also gets generated constants (`frontend/src/types/permissions.ts`) |
 
 ### Channels — `/api/v1/`
 
@@ -140,7 +141,8 @@ Request and response shapes are in the OpenAPI schema. ✱ = requires a verified
 | GET/POST | `/servers/{id}/channels` | Visible channels / create (MANAGE_CHANNELS) |
 | PATCH/DELETE | `/channels/{id}` | |
 | PATCH | `/servers/{id}/channels/reorder` | |
-| GET/PUT/DELETE | `/channels/{id}/overwrites[/{target_id}]` | Permission overwrites |
+| GET/PUT | `/channels/{id}/overwrites` | List, or create/replace one: `{role_id \| user_id, allow, deny}` (MANAGE_CHANNELS + MANAGE_ROLES, hierarchy and grant rules) |
+| DELETE | `/channels/{id}/overwrites/{overwrite_id}` | Remove an overwrite |
 | POST | `/channels/{id}/ack` | `{message_id}` → mark read |
 
 ### Messages — `/api/v1/` (same shape for channels and DMs)

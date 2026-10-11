@@ -60,7 +60,8 @@ This document describes **how** the system is built. Requirements are in [REQUIR
   - The signed-in app (`/channels/...`, `/settings/...`): the static shell is prerendered and user data is fetched in the browser (TanStack Query), so an expired access token can be refreshed silently (ADR-022).
   - Server-side data fetching calls the API over the internal Docker network (`http://api:8000`) and forwards the user's cookies.
 - **Client state**
-  - *Server state:* TanStack Query caches REST data. WebSocket events patch the query cache directly, so no refetch is needed.
+  - *Server state:* TanStack Query caches REST data. WebSocket events patch the query cache directly, so no refetch is needed. Until Phase 4, new messages are polled every 4 s with `?after=<newest id>` and merged into the cache (the same code path the WebSocket events will use), and member lists refresh on focus and every 30 s.
+  - *Hidden pages:* Next 16 with Cache Components keeps recently visited pages mounted but hidden (React `<Activity>`), so effects such as polling are paused there automatically. E2E tests must target visible elements.
   - *Real-time:* one `RealtimeClient` singleton manages the WebSocket connection, subscriptions, heartbeats, reconnects with exponential backoff and jitter, and backfill after reconnect.
   - *UI state:* React state/context. A small store (Zustand) is added only if it becomes necessary.
 - **Forms:** React Hook Form + Zod. Zod schemas mirror the API validation.
@@ -122,7 +123,7 @@ backend/
 │   ├── core/               # Base models (UUIDv7 PK, timestamps), permissions helpers, pagination, health
 │   ├── accounts/           # User, auth views, email verification, password reset, audit log
 │   ├── servers/            # Server, Member, Role, Invite, Ban, Topic, discovery
-│   ├── channels/           # Category, Channel, PermissionOverwrite, ReadState   (app label: "chat_channels")
+│   ├── chat_channels/      # Category, Channel, PermissionOverwrite (ReadState in Phase 4)
 │   ├── messaging/          # Message, Attachment, Reaction, Mention, DM conversations, search
 │   ├── polls/              # Poll, PollOption, PollVote
 │   ├── notifications/      # Notification inbox, mute settings
@@ -135,7 +136,9 @@ backend/
 └── uv.lock
 ```
 
-> The `channels` app is given the label `chat_channels` so it doesn't clash with the `channels` (Django Channels) package.
+> The channels app is called `chat_channels` so it never shadows the `channels` (Django Channels) package.
+>
+> Permission checks go through `apps/servers/access.py`. `get_access(user, server)` loads the membership, roles and `@everyone` in three queries and exposes `has()`, `require()`, `channel_perms()` and the role-hierarchy helpers. Computed permissions aren't cached yet (they're cheap at this scale). The Redis cache described in §4 is deferred until profiling shows a need.
 
 **Layering inside each app**
 

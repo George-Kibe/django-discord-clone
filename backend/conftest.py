@@ -60,3 +60,52 @@ def auth_client(user: User) -> APIClient:
     client = APIClient()
     login(client, user)
     return client
+
+
+# ---------------------------------------------------------------------------- servers (Phase 3)
+
+
+@pytest.fixture
+def make_user(db: None):
+    def _make(**kwargs: object) -> User:
+        kwargs.setdefault("email_verified_at", "2026-01-01T00:00:00Z")
+        return UserFactory.create(password=PASSWORD, **kwargs)
+
+    return _make
+
+
+@pytest.fixture
+def client_for():
+    def _client(user: User) -> APIClient:
+        client = APIClient()
+        client.force_authenticate(user)
+        return client
+
+    return _client
+
+
+@pytest.fixture
+def server(user: User):
+    from apps.servers.services import create_server
+
+    return create_server(owner=user, name="Test Server")
+
+
+@pytest.fixture
+def join():
+    def _join(server, user: User):
+        from apps.servers.services import add_member
+
+        return add_member(server, user)
+
+    return _join
+
+
+@pytest.fixture
+def topics(db: None) -> None:
+    """Re-seed topics: transactional tests elsewhere truncate migration-seeded rows."""
+    import importlib
+
+    from django.apps import apps as django_apps
+
+    importlib.import_module("apps.servers.migrations.0002_seed_topics").seed(django_apps, None)
