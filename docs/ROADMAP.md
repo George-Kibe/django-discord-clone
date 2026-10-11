@@ -6,8 +6,8 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
 
 | Phase | Name | Version | Status |
 |---|---|---|---|
-| 0 | Foundations | v0.1.0 | 🟨 |
-| 1 | Accounts & profiles | v0.2.0 | ⬜ |
+| 0 | Foundations | v0.1.0 | ✅ |
+| 1 | Accounts & profiles | v0.2.0 | ✅ |
 | 2 | Production pipeline | v0.3.0 | ⬜ |
 | 3 | Servers, channels & messages | v0.4.0 | ⬜ |
 | 4 | Real-time | v0.5.0 | ⬜ |
@@ -46,7 +46,7 @@ The production pipeline (Phase 2) comes deliberately early, so every later featu
   - [x] Health checks, named volumes, hot reload
   - [x] Makefile shortcuts (`make up`, `make test`, `make migrate`, …)
 - [x] **CI** (`.github/workflows/ci.yml`): backend lint/type/test (Postgres + Redis services), frontend lint/type/test/build, schema-drift check, gitleaks. E2E job (Compose + Playwright), production image build check. Dependabot config
-- [ ] Branch protection on `main` (CI required, PRs only). Set in GitHub settings once CI has run
+- [ ] Branch protection on `main` (CI required, PRs only). **Owner action** in GitHub settings
 
 **Exit criteria:** fresh clone → `make up` → landing page at `http://localhost`, Swagger at `/api/docs/`, the WS ping works, a Celery task runs; CI is green on a PR.
 
@@ -54,14 +54,14 @@ The production pipeline (Phase 2) comes deliberately early, so every later featu
 
 **Goal:** users can register, verify, log in securely and manage their profile.
 
-- [ ] Backend: register, verify email, login/refresh/logout (cookie JWT), CSRF bootstrap, password reset/change, email change (FR-AUTH-01…08)
-- [ ] Throttling for auth endpoints (NFR-SEC-06)
-- [ ] Auth audit log + admin view (FR-AUTH-08, FR-MOD-05)
-- [ ] Cloudinary integration: `media/sign`, `PendingUpload`, avatar upload/remove (FR-PROF-01…03, ADR-010)
-- [ ] Transactional email templates (HTML + text) through Celery
-- [ ] Frontend: auth pages, protected route handling, silent refresh, profile settings, avatar cropper
-- [ ] WebSocket cookie-auth middleware (connect rejects anonymous users)
-- [ ] E2E: register → verify (via Mailpit API) → login → update profile → logout
+- [x] Backend: register, verify email, login/refresh/logout (cookie JWT), CSRF bootstrap, password reset/change, email change (FR-AUTH-01…08)
+- [x] Throttling for auth endpoints (NFR-SEC-06)
+- [x] Auth audit log + admin view (FR-AUTH-08, FR-MOD-05)
+- [x] Cloudinary integration: `media/sign`, `PendingUpload`, avatar upload/remove (FR-PROF-01…02, ADR-010). FR-PROF-03: `GET /users/{id}` is done; the profile-card UI lands with member lists in Phase 3
+- [x] Transactional email templates (HTML + text) through Celery
+- [x] Frontend: auth pages, protected route handling, silent refresh, profile settings, avatar cropper
+- [x] WebSocket cookie-auth middleware (connect rejects anonymous users)
+- [x] E2E: register → verify (via Mailpit API) → login → update profile → logout, plus password reset, email/password change, silent refresh, real Cloudinary avatar and axe accessibility checks
 
 **Exit criteria:** all FR-AUTH (M) and FR-PROF-01…03 pass their tests. Tokens are never visible to JS. Auth throttles are verified by tests.
 

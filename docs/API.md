@@ -89,16 +89,18 @@ Request and response shapes are in the OpenAPI schema. ✱ = requires a verified
 | Method | Path | Description |
 |---|---|---|
 | POST | `/auth/register` | Create account, send verification email |
-| POST | `/auth/verify-email` | `{token}` → mark verified |
+| POST | `/auth/verify-email` | `{token}` → mark verified, or confirm an email change |
 | POST | `/auth/resend-verification` | |
 | POST | `/auth/login` | Set auth cookies |
-| POST | `/auth/refresh` | Rotate tokens (uses refresh cookie) |
+| POST | `/auth/refresh` | Rotate tokens (uses refresh cookie). CSRF-exempt. Failure clears cookies |
 | POST | `/auth/logout` | Blacklist refresh, clear cookies |
 | POST | `/auth/password/reset` | Request reset email |
 | POST | `/auth/password/reset/confirm` | `{token, password}` |
 | POST | `/auth/password/change` | Authenticated |
 | GET | `/auth/csrf` | Set `csrftoken` cookie (first visit) |
-| GET/PATCH | `/users/me` | Own profile |
+| GET/PATCH | `/users/me` | Own profile (PATCH: `username`, `display_name`, `bio`, `status`) |
+| POST | `/users/me/email` | `{new_email, password}` → confirmation link to the new address (`202`) |
+| PUT/DELETE | `/users/me/avatar` | Attach an upload from `/media/sign` (`{public_id}`) / remove the avatar |
 | DELETE | `/users/me` | Delete account |
 | GET | `/users/me/export` | Data export (JSON) |
 | GET | `/users/{id}` | Public profile card (+ mutual servers) |
@@ -193,7 +195,7 @@ Request and response shapes are in the OpenAPI schema. ✱ = requires a verified
 
 ### Endpoint & auth
 
-- URL: `wss://<host>/ws/` (`ws://localhost/ws/` in development).
+- URL: `wss://<host>/ws/` (`ws://localhost/ws/` in development). `/ws/ping/` is an unauthenticated connectivity check.
 - Auth: the access cookie is sent automatically with the handshake. `Origin` must match `ALLOWED_HOSTS`.
 - One connection per browser tab. All subscriptions are multiplexed over it.
 

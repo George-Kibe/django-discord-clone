@@ -96,10 +96,14 @@ Commit the lockfiles (`backend/uv.lock`, `frontend/pnpm-lock.yaml`). Check that 
 - Deprecation warnings are errors (`-W error::DeprecationWarning`) to keep the Django 6.2 upgrade easy.
 - Coverage: `pytest --cov` (CI enforces ≥ 85 %).
 
+### Email in development
+
+Outgoing mail goes to **Mailpit** (http://localhost:8025) unless `.env` sets `EMAIL_URL`. Keep it that way for day-to-day work: the E2E suite registers throwaway `@example.com` users and reads their emails from Mailpit's API. To test delivery through a real provider (e.g. Gmail), set `EMAIL_URL` temporarily (see the table below), run `docker compose up -d`, and remove it again before running E2E.
+
 ### Frontend
 
 - **Vitest** + Testing Library for components and hooks. **MSW** mocks the API, and a mock WebSocket server tests the realtime client.
-- **Playwright** E2E runs against the full Compose stack. It reads verification emails through the Mailpit API. Specs live in `frontend/e2e/`.
+- **Playwright** E2E runs against the full Compose stack. It reads verification emails through the Mailpit API. Specs live in `frontend/e2e/`. The suite includes automated accessibility checks (axe, WCAG 2.2 AA) for every page. The avatar test uploads to the real Cloudinary account in `.env`, cleans up after itself, and skips itself when Cloudinary isn't configured (as in CI).
 
 ## Database & migrations
 
@@ -132,9 +136,10 @@ Commit the lockfiles (`backend/uv.lock`, `frontend/pnpm-lock.yaml`). Check that 
 | `REDIS_URL` | `redis://redis:6379` | api, worker, beat | DB numbers are added in settings (§6 of ARCHITECTURE) |
 | `CLOUDINARY_URL` | `cloudinary://<key>:<secret>@<cloud_name>` | api, worker | **Secret.** Ask the project owner |
 | `CLOUDINARY_FOLDER_PREFIX` | `dev` | api | Keeps dev/prod assets apart |
-| `EMAIL_URL` | `smtp://mailpit:1025` | api, worker | `smtp+tls://user:pass@host:587` in production |
+| `EMAIL_URL` | *(unset → Mailpit in dev)* | api, worker | SMTP URL, e.g. `smtp+tls://user:pass@host:587`. URL-encode special characters in the user and password (`@` → `%40`, space → `%20`). Gmail: `smtp+tls://you%40gmail.com:app-password@smtp.gmail.com:587` with a Google [app password](https://myaccount.google.com/apppasswords). |
 | `DEFAULT_FROM_EMAIL` | `Discord Clone <no-reply@localhost>` | api, worker | |
 | `JWT_ACCESS_MINUTES` / `JWT_REFRESH_DAYS` | `15` / `14` | api | |
+| `AUTH_COOKIE_SECURE` | `false` | api | Forced on in production settings |
 | `SENTRY_DSN` | *(empty)* | api, worker | Disabled when empty |
 | `NEXT_PUBLIC_SENTRY_DSN` | *(empty)* | web | |
 | `NEXT_PUBLIC_SITE_URL` | `http://localhost` | web | |
@@ -159,3 +164,6 @@ Commit the lockfiles (`backend/uv.lock`, `frontend/pnpm-lock.yaml`). Check that 
 | CSRF failure on POST | Call `GET /api/v1/auth/csrf` first and send `X-CSRFToken`. Check `DJANGO_CSRF_TRUSTED_ORIGINS` |
 | File changes not picked up (macOS/Windows) | Make sure the bind mounts are in place. Set `WATCHPACK_POLLING=true` for `web` |
 | Port 80 already in use | Stop the local web server, or change the Caddy port mapping in `compose.override.yaml` |
+| Edited `.env` but nothing changed | `docker compose restart` does **not** re-read `.env`. Run `docker compose up -d` so the containers are recreated |
+| No emails in Mailpit | Check `docker compose logs worker`. Emails are sent by the Celery worker after the database commit. If `.env` sets `EMAIL_URL`, mail goes there instead of Mailpit |
+| Stuck on a loading spinner after login | The `session` cookie exists but the API rejects the tokens. Clear the site's cookies or log out |
