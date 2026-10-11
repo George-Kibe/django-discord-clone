@@ -1,0 +1,8 @@
+{% extends "emails/base.html" %}
+{% block title %}Confirm your new email address{% endblock %}
+{% block content %}
+<p style="margin:0 0 12px;font-size:16px;">Hi {{ name }},</p>
+<p style="margin:0;font-size:15px;line-height:1.5;">You asked to change your account email to <strong>{{ new_email }}</strong>.</p>
+{% include "emails/_button.html" with label="Confirm new email" %}
+<p style="margin:16px 0 0;font-size:13px;color:#4f5660;">If you didn't ask for this, ignore this email; nothing will change.</p>
+{% endblock %}

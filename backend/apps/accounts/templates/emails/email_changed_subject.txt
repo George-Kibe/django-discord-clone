@@ -1,0 +1,3 @@
+{% autoescape off %}
+Your email address was changed
+{% endautoescape %}

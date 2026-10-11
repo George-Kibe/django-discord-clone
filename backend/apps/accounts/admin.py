@@ -1,8 +1,10 @@
+from typing import Any
+
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.contrib.auth.forms import UserChangeForm, UserCreationForm
 
-from .models import User
+from .models import AuthAuditEvent, User
 
 
 class AccountCreationForm(UserCreationForm):  # type: ignore[type-arg]
@@ -52,3 +54,23 @@ class UserAdmin(DjangoUserAdmin):  # type: ignore[type-arg]
             },
         ),
     )
+
+
+@admin.register(AuthAuditEvent)
+class AuthAuditEventAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
+    """Read-only view of the authentication audit log (FR-MOD-05)."""
+
+    list_display = ("created_at", "event", "email_attempted", "user", "ip")
+    list_filter = ("event", "created_at")
+    search_fields = ("email_attempted", "user__username", "user__email", "ip")
+    date_hierarchy = "created_at"
+    list_select_related = ("user",)
+
+    def has_add_permission(self, request: Any) -> bool:
+        return False
+
+    def has_change_permission(self, request: Any, obj: Any = None) -> bool:
+        return False
+
+    def has_delete_permission(self, request: Any, obj: Any = None) -> bool:
+        return False
