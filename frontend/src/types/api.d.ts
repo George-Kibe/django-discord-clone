@@ -212,6 +212,122 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/categories/{category_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["categories_destroy"];
+        options?: never;
+        head?: never;
+        patch: operations["categories_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/channels/{channel_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["channels_retrieve"];
+        put?: never;
+        post?: never;
+        delete: operations["channels_destroy"];
+        options?: never;
+        head?: never;
+        patch: operations["channels_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/channels/{channel_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["channels_messages_retrieve"];
+        put?: never;
+        /** @description A repeated `nonce` returns the original message with 200 (idempotent retry). */
+        post: operations["channels_messages_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channels/{channel_id}/overwrites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["channels_overwrites_list"];
+        /** Create or replace an overwrite */
+        put: operations["channels_overwrites_update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channels/{channel_id}/overwrites/{overwrite_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["channels_overwrites_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/invites/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Invite preview (public) */
+        get: operations["invites_retrieve"];
+        put?: never;
+        post?: never;
+        /** Revoke an invite */
+        delete: operations["invites_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/invites/{code}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["invites_accept_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/media/sign": {
         parameters: {
             query?: never;
@@ -229,6 +345,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/messages/{message_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["messages_destroy"];
+        options?: never;
+        head?: never;
+        patch: operations["messages_partial_update"];
+        trace?: never;
+    };
     "/api/v1/meta": {
         parameters: {
             query?: never;
@@ -238,6 +370,266 @@ export interface paths {
         };
         /** @description Public build/environment info for the frontend. */
         get: operations["meta_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Permission bits with labels, for the role editor (docs/DATA_MODEL.md#permissions). */
+        get: operations["permissions_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/servers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Servers I'm a member of */
+        get: operations["servers_list"];
+        put?: never;
+        post: operations["servers_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/servers/{server_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["servers_retrieve"];
+        put?: never;
+        post?: never;
+        delete: operations["servers_destroy"];
+        options?: never;
+        head?: never;
+        patch: operations["servers_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/servers/{server_id}/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["servers_categories_list"];
+        put?: never;
+        post: operations["servers_categories_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/servers/{server_id}/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Channels visible to me */
+        get: operations["servers_channels_list"];
+        put?: never;
+        post: operations["servers_channels_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/servers/{server_id}/channels/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["servers_channels_reorder_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/servers/{server_id}/invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["servers_invites_list"];
+        put?: never;
+        post: operations["servers_invites_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/servers/{server_id}/join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Join a public server */
+        post: operations["servers_join_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/servers/{server_id}/leave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["servers_leave_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/servers/{server_id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["servers_members_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/servers/{server_id}/members/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["servers_members_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/servers/{server_id}/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["servers_roles_list"];
+        put?: never;
+        post: operations["servers_roles_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/servers/{server_id}/roles/{role_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["servers_roles_destroy"];
+        options?: never;
+        head?: never;
+        patch: operations["servers_roles_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/servers/{server_id}/roles/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["servers_roles_reorder_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/servers/{server_id}/transfer-ownership": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["servers_transfer_ownership_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/topics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["topics_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -319,6 +711,49 @@ export interface components {
         AvatarRequest: {
             public_id: string;
         };
+        Category: {
+            /** Format: uuid */
+            readonly id: string;
+            name: string;
+            readonly position: number;
+        };
+        CategoryRequest: {
+            name: string;
+        };
+        Channel: {
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: uuid */
+            readonly server_id: string;
+            /** Format: uuid */
+            readonly category_id: string | null;
+            readonly type: components["schemas"]["ChannelTypeEnum"];
+            readonly name: string;
+            readonly topic: string;
+            readonly position: number;
+            readonly slowmode_seconds: number;
+            /** @description Your effective permissions here. */
+            readonly permissions: number;
+        };
+        ChannelOrderItemRequest: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            category_id: string | null;
+            position: number;
+        };
+        /**
+         * @description * `text` - Text
+         * @enum {string}
+         */
+        ChannelTypeEnum: "text";
+        ChannelWriteRequest: {
+            name: string;
+            topic?: string;
+            /** Format: uuid */
+            category_id?: string | null;
+            slowmode_seconds?: number;
+        };
         Detail: {
             detail: string;
         };
@@ -343,11 +778,69 @@ export interface components {
          * @enum {string}
          */
         HealthStatusEnum: "ok" | "error";
+        Invite: {
+            readonly code: string;
+            /** Format: uuid */
+            readonly server_id: string;
+            readonly inviter: components["schemas"]["UserSummary"];
+            readonly max_uses: number | null;
+            readonly uses: number;
+            /** Format: date-time */
+            readonly expires_at: string | null;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        InviteCreateRequest: {
+            /**
+             * @description Seconds; 0 = never.
+             *
+             *     * `0` - 0
+             *     * `1800` - 1800
+             *     * `3600` - 3600
+             *     * `21600` - 21600
+             *     * `43200` - 43200
+             *     * `86400` - 86400
+             *     * `604800` - 604800
+             * @default 604800
+             */
+            max_age: components["schemas"]["MaxAgeEnum"];
+            /**
+             * @description 0 = unlimited.
+             * @default 0
+             */
+            max_uses: number;
+        };
+        InvitePreview: {
+            readonly code: string;
+            readonly server: components["schemas"]["InviteServer"];
+            readonly inviter: components["schemas"]["UserSummary"];
+            /** Format: date-time */
+            readonly expires_at: string | null;
+        };
+        InviteServer: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly name: string;
+            readonly description: string;
+            readonly icon_url: string | null;
+            readonly member_count: number;
+        };
         LoginRequest: {
             /** Format: email */
             email: string;
             password: string;
         };
+        /**
+         * @description * `0` - 0
+         *     * `1800` - 1800
+         *     * `3600` - 3600
+         *     * `21600` - 21600
+         *     * `43200` - 43200
+         *     * `86400` - 86400
+         *     * `604800` - 604800
+         * @enum {integer}
+         */
+        MaxAgeEnum: 0 | 1800 | 3600 | 21600 | 43200 | 86400 | 604800;
         /** @description The signed-in user's own profile (response shape). */
         Me: {
             /** Format: uuid */
@@ -366,10 +859,91 @@ export interface components {
             readonly status: components["schemas"]["UserStatusEnum"];
             readonly email_verified: boolean;
         };
+        Member: {
+            readonly user: components["schemas"]["UserSummary"];
+            readonly nickname: string;
+            readonly role_ids: string[];
+            readonly is_owner: boolean;
+            /** Format: date-time */
+            readonly joined_at: string;
+        };
+        Message: {
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: uuid */
+            readonly channel_id: string;
+            readonly author: components["schemas"]["UserSummary"] | null;
+            readonly type: components["schemas"]["MessageTypeEnum"];
+            readonly content: string;
+            readonly nonce: string | null;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly edited_at: string | null;
+        };
+        MessagePage: {
+            results: components["schemas"]["Message"][];
+            has_more: boolean;
+        };
+        /**
+         * @description * `default` - Default
+         *     * `system` - System
+         * @enum {string}
+         */
+        MessageTypeEnum: "default" | "system";
+        MessageWriteRequest: {
+            content: string;
+            nonce?: string | null;
+        };
         Meta: {
             name: string;
             version: string;
             environment: string;
+        };
+        MutualServer: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            icon_url: string | null;
+        };
+        MyMembership: {
+            is_owner: boolean;
+            /** @description Effective server-level permission bitfield. */
+            permissions: number;
+            role_ids: string[];
+            nickname: string;
+        };
+        Overwrite: {
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: uuid */
+            readonly role_id: string | null;
+            readonly user_id: string | null;
+            readonly allow: number;
+            readonly deny: number;
+        };
+        OverwriteWriteRequest: {
+            /** Format: uuid */
+            role_id?: string | null;
+            /** Format: uuid */
+            user_id?: string | null;
+            allow: number;
+            deny: number;
+        };
+        PaginatedMemberList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["Member"][];
         };
         PasswordChangeRequest: {
             current_password: string;
@@ -380,6 +954,19 @@ export interface components {
             token: string;
             password: string;
         };
+        PatchedCategoryRequest: {
+            name?: string;
+        };
+        PatchedChannelReorderRequest: {
+            channels?: components["schemas"]["ChannelOrderItemRequest"][];
+        };
+        PatchedChannelUpdateRequest: {
+            name?: string;
+            topic?: string;
+            /** Format: uuid */
+            category_id?: string | null;
+            slowmode_seconds?: number;
+        };
         /** @description PATCH /users/me input. Responses use MeSerializer. */
         PatchedMeUpdateRequest: {
             username?: string;
@@ -387,27 +974,105 @@ export interface components {
             bio?: string;
             status?: components["schemas"]["UserStatusEnum"];
         };
-        PublicUser: {
-            /** Format: uuid */
-            readonly id: string;
-            readonly username: string;
-            readonly display_name: string;
-            readonly bio: string;
-            readonly avatar_url: string | null;
-            /** Format: date-time */
-            readonly date_joined: string;
+        PatchedMemberUpdateRequest: {
+            nickname?: string;
+            role_ids?: string[];
+        };
+        PatchedMessageEditRequest: {
+            content?: string;
+        };
+        PatchedRoleReorderRequest: {
+            /** @description Highest first. */
+            role_ids?: string[];
+        };
+        PatchedRoleRequest: {
+            name?: string;
+            color?: number;
+            /** Format: int64 */
+            permissions?: number;
+            mentionable?: boolean;
+            hoist?: boolean;
+        };
+        PatchedServerUpdateRequest: {
+            name?: string;
+            description?: string;
+            icon_public_id?: string;
+            is_public?: boolean;
+            topic_id?: number | null;
+        };
+        PermissionInfo: {
+            name: string;
+            value: number;
+            description: string;
         };
         /**
          * @description * `avatar` - avatar
+         *     * `server_icon` - server_icon
          * @enum {string}
          */
-        PurposeEnum: "avatar";
+        PurposeEnum: "avatar" | "server_icon";
         RegisterRequest: {
             /** Format: email */
             email: string;
             username: string;
             display_name?: string;
             password: string;
+        };
+        Role: {
+            /** Format: uuid */
+            readonly id: string;
+            name: string;
+            color?: number;
+            readonly position: number;
+            /** Format: int64 */
+            permissions?: number;
+            readonly is_default: boolean;
+            mentionable?: boolean;
+            hoist?: boolean;
+        };
+        RoleRequest: {
+            name: string;
+            color?: number;
+            /** Format: int64 */
+            permissions?: number;
+            mentionable?: boolean;
+            hoist?: boolean;
+        };
+        Server: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly name: string;
+            readonly description: string;
+            readonly icon_url: string | null;
+            /** Format: uuid */
+            readonly owner_id: string;
+            readonly topic: components["schemas"]["Topic"];
+            readonly is_public: boolean;
+            readonly member_count: number;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        ServerCreateRequest: {
+            name: string;
+            description?: string;
+            icon_public_id?: string;
+            is_public?: boolean;
+            topic_id?: number | null;
+        };
+        ServerDetail: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly name: string;
+            readonly description: string;
+            readonly icon_url: string | null;
+            /** Format: uuid */
+            readonly owner_id: string;
+            readonly topic: components["schemas"]["Topic"];
+            readonly is_public: boolean;
+            readonly member_count: number;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly me: components["schemas"]["MyMembership"];
         };
         SignUploadRequestRequest: {
             purpose: components["schemas"]["PurposeEnum"];
@@ -427,6 +1092,27 @@ export interface components {
         TokenRequest: {
             token: string;
         };
+        Topic: {
+            readonly id: number;
+            name: string;
+            slug: string;
+        };
+        TransferOwnershipRequest: {
+            /** Format: uuid */
+            user_id: string;
+        };
+        /** @description GET /users/{id}: public profile plus the servers shared with the viewer (FR-PROF-03). */
+        UserProfile: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly username: string;
+            readonly display_name: string;
+            readonly bio: string;
+            readonly avatar_url: string | null;
+            /** Format: date-time */
+            readonly date_joined: string;
+            readonly mutual_servers: components["schemas"]["MutualServer"][];
+        };
         /**
          * @description * `online` - Online
          *     * `idle` - Idle
@@ -435,6 +1121,14 @@ export interface components {
          * @enum {string}
          */
         UserStatusEnum: "online" | "idle" | "dnd" | "invisible";
+        /** @description Compact user embedded in messages, members and invites. */
+        UserSummary: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly username: string;
+            readonly display_name: string;
+            readonly avatar_url: string | null;
+        };
     };
     responses: never;
     parameters: never;
@@ -714,6 +1408,307 @@ export interface operations {
             };
         };
     };
+    categories_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    categories_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedCategoryRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Category"];
+                };
+            };
+        };
+    };
+    channels_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Channel"];
+                };
+            };
+        };
+    };
+    channels_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    channels_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedChannelUpdateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Channel"];
+                };
+            };
+        };
+    };
+    channels_messages_retrieve: {
+        parameters: {
+            query?: {
+                /** @description Message id: newer messages, oldest first */
+                after?: string;
+                /** @description Message id: older messages, newest first */
+                before?: string;
+                /** @description 1-100, default 50 */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                channel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessagePage"];
+                };
+            };
+        };
+    };
+    channels_messages_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MessageWriteRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+        };
+    };
+    channels_overwrites_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Overwrite"][];
+                };
+            };
+        };
+    };
+    channels_overwrites_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OverwriteWriteRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Overwrite"];
+                };
+            };
+        };
+    };
+    channels_overwrites_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: string;
+                overwrite_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    invites_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitePreview"];
+                };
+            };
+        };
+    };
+    invites_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    invites_accept_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerDetail"];
+                };
+            };
+        };
+    };
     media_sign_create: {
         parameters: {
             query?: never;
@@ -737,6 +1732,51 @@ export interface operations {
             };
         };
     };
+    messages_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    messages_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedMessageEditRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+        };
+    };
     meta_retrieve: {
         parameters: {
             query?: never;
@@ -752,6 +1792,551 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Meta"];
+                };
+            };
+        };
+    };
+    permissions_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PermissionInfo"][];
+                };
+            };
+        };
+    };
+    servers_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Server"][];
+                };
+            };
+        };
+    };
+    servers_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServerCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerDetail"];
+                };
+            };
+        };
+    };
+    servers_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerDetail"];
+                };
+            };
+        };
+    };
+    servers_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    servers_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedServerUpdateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerDetail"];
+                };
+            };
+        };
+    };
+    servers_categories_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Category"][];
+                };
+            };
+        };
+    };
+    servers_categories_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Category"];
+                };
+            };
+        };
+    };
+    servers_channels_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Channel"][];
+                };
+            };
+        };
+    };
+    servers_channels_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChannelWriteRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Channel"];
+                };
+            };
+        };
+    };
+    servers_channels_reorder_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedChannelReorderRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Channel"][];
+                };
+            };
+        };
+    };
+    servers_invites_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Invite"][];
+                };
+            };
+        };
+    };
+    servers_invites_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["InviteCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Invite"];
+                };
+            };
+        };
+    };
+    servers_join_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerDetail"];
+                };
+            };
+        };
+    };
+    servers_leave_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    servers_members_list: {
+        parameters: {
+            query?: {
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedMemberList"];
+                };
+            };
+        };
+    };
+    servers_members_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedMemberUpdateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Member"];
+                };
+            };
+        };
+    };
+    servers_roles_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Role"][];
+                };
+            };
+        };
+    };
+    servers_roles_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoleRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Role"];
+                };
+            };
+        };
+    };
+    servers_roles_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                role_id: string;
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    servers_roles_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                role_id: string;
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedRoleRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Role"];
+                };
+            };
+        };
+    };
+    servers_roles_reorder_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedRoleReorderRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Role"][];
+                };
+            };
+        };
+    };
+    servers_transfer_ownership_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferOwnershipRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerDetail"];
+                };
+            };
+        };
+    };
+    topics_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Topic"][];
                 };
             };
         };
@@ -772,7 +2357,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PublicUser"];
+                    "application/json": components["schemas"]["UserProfile"];
                 };
             };
         };

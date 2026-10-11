@@ -1,13 +1,13 @@
 export type PixelCrop = { x: number; y: number; width: number; height: number };
 
-export const AVATAR_OUTPUT_SIZE = 512;
-export const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
-export const AVATAR_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+export const IMAGE_OUTPUT_SIZE = 512;
+export const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+export const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 
 /** Validates a picked file before cropping (mirrors the backend upload rules). */
-export function validateAvatarFile(file: File): string | null {
-  if (!AVATAR_TYPES.includes(file.type)) return "Use a PNG, JPEG, WebP or GIF image.";
-  if (file.size > AVATAR_MAX_BYTES) return "Images must be 5 MB or smaller.";
+export function validateImageFile(file: File): string | null {
+  if (!IMAGE_TYPES.includes(file.type)) return "Use a PNG, JPEG, WebP or GIF image.";
+  if (file.size > IMAGE_MAX_BYTES) return "Images must be 5 MB or smaller.";
   return null;
 }
 
@@ -24,8 +24,8 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 export async function cropToBlob(src: string, crop: PixelCrop): Promise<Blob> {
   const image = await loadImage(src);
   const canvas = document.createElement("canvas");
-  canvas.width = AVATAR_OUTPUT_SIZE;
-  canvas.height = AVATAR_OUTPUT_SIZE;
+  canvas.width = IMAGE_OUTPUT_SIZE;
+  canvas.height = IMAGE_OUTPUT_SIZE;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Your browser can't crop images.");
   context.imageSmoothingQuality = "high";
@@ -37,8 +37,8 @@ export async function cropToBlob(src: string, crop: PixelCrop): Promise<Blob> {
     crop.height,
     0,
     0,
-    AVATAR_OUTPUT_SIZE,
-    AVATAR_OUTPUT_SIZE,
+    IMAGE_OUTPUT_SIZE,
+    IMAGE_OUTPUT_SIZE,
   );
   return new Promise((resolve, reject) =>
     canvas.toBlob(
