@@ -98,13 +98,13 @@ frontend/src/
 | Auth | `djangorestframework-simplejwt` (with token blacklist), custom cookie authentication class |
 | OpenAPI | `drf-spectacular` |
 | WebSockets | `channels`, `channels-redis` |
-| Background jobs | `celery`, `django-celery-beat` (DB-backed schedules) |
+| Background jobs | `celery` (worker + beat with a static schedule in settings, ADR-021) |
 | Config | `django-environ` |
 | Media | `cloudinary` (Python SDK) |
 | PDFs | `reportlab` (pure Python, no system dependencies) |
 | Passwords | `argon2-cffi` |
 | Static files | `whitenoise` (admin/DRF static files only) |
-| Observability | `sentry-sdk`, `structlog` / JSON logging, `django-health-check` |
+| Observability | `sentry-sdk`, `python-json-logger` (JSON logs with request IDs), built-in health views |
 | Dev/test | `pytest`, `pytest-django`, `pytest-asyncio`, `factory-boy`, `ruff`, `mypy` + `django-stubs`, `django-debug-toolbar` |
 
 Backend source layout (domain-oriented apps):
@@ -155,7 +155,7 @@ tasks.py (Celery)      ─┘         │
 - The broker and result backend are Redis (separate logical DBs, see §6).
 - Queues: `default` (emails, notifications), `heavy` (PDF exports, link previews) with a concurrency limit, and `beat`-scheduled maintenance tasks.
 - All tasks are idempotent, with `acks_late=True`, autoretry with exponential backoff, and time limits.
-- Scheduled tasks (django-celery-beat):
+- Scheduled tasks (`CELERY_BEAT_SCHEDULE` in settings, ADR-021). Each is added in the phase that introduces it:
 
 | Task | Schedule |
 |---|---|

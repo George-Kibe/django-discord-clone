@@ -40,8 +40,8 @@ servers.Server ──< Invite, Ban, ServerAuditEvent;  servers.Server >── se
 | Field | Type | Notes |
 |---|---|---|
 | id | uuid7 | PK |
-| email | varchar(254) | stored lowercased, unique via `UniqueConstraint(Lower("email"))`, `USERNAME_FIELD` |
-| username | varchar(32) | unique via `UniqueConstraint(Lower("username"))`, `^[a-z0-9_.]{2,32}$` |
+| email | varchar(254) | `unique`, always stored lowercased (manager + `save()`), `USERNAME_FIELD` |
+| username | varchar(32) | `unique`, always stored lowercased, `^[a-z0-9_.]{2,32}$` |
 | display_name | varchar(64) | |
 | bio | text(500) | blank |
 | avatar_public_id | varchar | Cloudinary public ID, nullable |
