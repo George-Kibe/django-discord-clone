@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.10
 ARG NODE_VERSION=24
 ARG PNPM_VERSION=12.11.2
 
@@ -29,15 +29,28 @@ CMD ["pnpm", "dev", "--hostname", "0.0.0.0", "--port", "3000"]
 
 # ---------------------------------------------------------------------------- builder
 FROM deps AS builder
+# Public values are inlined into the browser bundle; the Sentry token is a build secret.
+ARG NEXT_PUBLIC_SENTRY_DSN=""
+ARG NEXT_PUBLIC_ENVIRONMENT=production
+ARG SENTRY_ORG=""
+ARG SENTRY_PROJECT=""
+ARG GIT_SHA=""
+ENV NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN} \
+    NEXT_PUBLIC_ENVIRONMENT=${NEXT_PUBLIC_ENVIRONMENT} \
+    SENTRY_ORG=${SENTRY_ORG} \
+    SENTRY_PROJECT=${SENTRY_PROJECT} \
+    SENTRY_RELEASE=${GIT_SHA}
 COPY --chown=node:node . .
-RUN pnpm build
+RUN --mount=type=secret,id=sentry_auth_token,env=SENTRY_AUTH_TOKEN,uid=1000 pnpm build
 
 # ---------------------------------------------------------------------------- prod
 FROM node:${NODE_VERSION}-trixie-slim AS prod
+ARG GIT_SHA=""
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     HOSTNAME=0.0.0.0 \
-    PORT=3000
+    PORT=3000 \
+    GIT_SHA=${GIT_SHA}
 # The standalone server only needs `node`: drop npm/corepack (and their vendored deps).
 RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
       /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
