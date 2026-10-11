@@ -73,7 +73,9 @@ Path filters skip backend jobs for frontend-only changes, and the other way roun
 | `DOMAIN` | variable | Public domain (shown as the environment URL) |
 | `DEPLOY_SSH_KEY` | secret | Private key (ed25519) whose public key is in `authorized_keys` |
 | `DEPLOY_KNOWN_HOSTS` | secret | Pinned host key (no `StrictHostKeyChecking=no`) |
-| `SENTRY_AUTH_TOKEN` | secret | Upload source maps / create releases |
+| `SENTRY_AUTH_TOKEN` | secret | Upload frontend source maps at build time (optional) |
+| `NEXT_PUBLIC_SENTRY_DSN` | variable | Frontend Sentry DSN, inlined into the browser bundle at build time (public by design). Empty = disabled |
+| `SENTRY_ORG` / `SENTRY_PROJECT` | variable | Frontend project for source-map uploads |
 
 Application secrets (Django secret key, DB password, Cloudinary, SMTP) stay **only** in `/srv/app/.env` on the server, never in GitHub.
 
@@ -171,7 +173,9 @@ rm ~/discord-clone-backup-key.txt     # don't leave the private key on the serve
 | What | How | Alert to |
 |---|---|---|
 | Uptime (`/api/health/ready`, `/`) | External monitor, 1-min interval | Email |
-| Application errors | Sentry (backend, Celery, Next.js) | Email (new issues, spikes) |
+| Application errors | Sentry: backend + Celery (`SENTRY_DSN` in `.env`), Next.js server + browser (`NEXT_PUBLIC_SENTRY_DSN` GitHub variable, baked in at build). Browser events go through the same-origin `/monitoring` tunnel | Email (new issues, spikes) |
+
+**What Sentry receives:** stack traces (file and line), error messages, route paths, release (git SHA) and environment. **Never** cookies, headers, request bodies, query strings, user info or frame-local variables. Those defaults are switched off in `config/settings/prod.py` and `frontend/src/lib/sentry-options.ts`, and both sides strip query strings from URLs and breadcrumbs. Verified with secret-bearing probe requests (cookies, Authorization headers, passwords, `?token=` links).
 | Backup success | Heartbeat ping | Email on a missed ping |
 | Disk > 80 %, memory > 90 %, unhealthy containers | [`infra/scripts/host-health.sh`](../infra/scripts/host-health.sh) every 10 min from cron → `HOST_HEARTBEAT_URL` (`/fail` on problems) | Email |
 | TLS expiry | Caddy auto-renews. The uptime monitor checks certificate expiry | Email |
