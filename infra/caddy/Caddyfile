@@ -13,6 +13,8 @@
 	}
 
 	header {
+		# "?" = only if the upstream didn't set it. Browsers ignore HSTS on plain HTTP (dev).
+		?Strict-Transport-Security "{$HSTS_VALUE:max-age=0}"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"

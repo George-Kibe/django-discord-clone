@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# docker compose for the production stack, pinned to the currently deployed image tag.
+#   ./infra/scripts/dc ps | logs -f api | exec api python manage.py shell | run --rm backup run-once
+set -euo pipefail
+cd "$(dirname "$0")/../.."
+if [ -z "${IMAGE_TAG:-}" ]; then
+  IMAGE_TAG="$(cat .current_tag 2>/dev/null || true)"
+  [ -n "$IMAGE_TAG" ] || { echo "no .current_tag yet: deploy first (infra/scripts/deploy.sh)" >&2; exit 1; }
+fi
+export IMAGE_TAG
+exec docker compose -f compose.yaml -f compose.prod.yaml ${COMPOSE_EXTRA_ARGS:-} "$@"

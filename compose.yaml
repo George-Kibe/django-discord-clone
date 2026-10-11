@@ -65,6 +65,12 @@ services:
   beat:
     <<: *backend
     command: ["beat"]
+    healthcheck:
+      # The image's HEALTHCHECK probes the web server, which beat doesn't run; check PID 1 instead.
+      test: ["CMD", "python", "-c", "import sys; sys.exit(b'beat' not in open('/proc/1/cmdline','rb').read())"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     depends_on:
       api:
         condition: service_healthy
