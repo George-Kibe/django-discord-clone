@@ -1,5 +1,6 @@
 from typing import Any
 
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.accounts.serializers import UserSummarySerializer
@@ -56,6 +57,7 @@ class ServerDetailSerializer(ServerSerializer):
         fields = [*ServerSerializer.Meta.fields, "me"]
         read_only_fields = fields
 
+    @extend_schema_field(MyMembershipSerializer)
     def get_me(self, server: Server) -> dict[str, Any]:
         access = self.context["access"]
         return MyMembershipSerializer(

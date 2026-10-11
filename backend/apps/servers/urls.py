@@ -3,7 +3,6 @@ from django.urls import path
 from . import views
 
 server_urlpatterns = [
-    path("", views.ServerListView.as_view(), name="servers"),
     path("<uuid:server_id>", views.ServerDetailView.as_view(), name="server-detail"),
     path(
         "<uuid:server_id>/transfer-ownership",

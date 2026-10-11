@@ -1,5 +1,6 @@
 from typing import Any
 
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.media.services import image_url
@@ -48,6 +49,38 @@ class PublicUserSerializer(serializers.ModelSerializer[User]):
 
     def get_avatar_url(self, user: User) -> str | None:
         return image_url(user.avatar_public_id, size=AVATAR_SIZE)
+
+
+class MutualServerSerializer(serializers.Serializer[Any]):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    icon_url = serializers.CharField(allow_null=True)
+
+
+class UserProfileSerializer(PublicUserSerializer):
+    """GET /users/{id}: public profile plus the servers shared with the viewer (FR-PROF-03)."""
+
+    mutual_servers = serializers.SerializerMethodField()
+
+    class Meta(PublicUserSerializer.Meta):
+        fields = [*PublicUserSerializer.Meta.fields, "mutual_servers"]
+        read_only_fields = fields
+
+    @extend_schema_field(MutualServerSerializer(many=True))
+    def get_mutual_servers(self, user: User) -> list[dict[str, Any]]:
+        from apps.servers.models import Server
+
+        viewer = self.context["request"].user
+        shared = (
+            Server.objects.filter(members__user=user)
+            .filter(members__user=viewer)
+            .only("id", "name", "icon_public_id")
+            .order_by("name")
+        )
+        return [
+            {"id": s.pk, "name": s.name, "icon_url": image_url(s.icon_public_id, size=64)}
+            for s in shared
+        ]
 
 
 class MeSerializer(PublicUserSerializer):

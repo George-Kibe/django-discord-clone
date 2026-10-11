@@ -663,7 +663,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/PermissionInfo'
           description: ''
-  /api/v1/servers/:
+  /api/v1/servers:
     get:
       operationId: servers_list
       summary: Servers I'm a member of
@@ -1258,7 +1258,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PublicUser'
+                $ref: '#/components/schemas/UserProfile'
           description: ''
   /api/v1/users/me:
     get:
@@ -1834,6 +1834,41 @@ components:
       - environment
       - name
       - version
+    MutualServer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        icon_url:
+          type: string
+          nullable: true
+      required:
+      - icon_url
+      - id
+      - name
+    MyMembership:
+      type: object
+      properties:
+        is_owner:
+          type: boolean
+        permissions:
+          type: integer
+          description: Effective server-level permission bitfield.
+        role_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        nickname:
+          type: string
+      required:
+      - is_owner
+      - nickname
+      - permissions
+      - role_ids
     Overwrite:
       type: object
       properties:
@@ -2063,37 +2098,6 @@ components:
       - description
       - name
       - value
-    PublicUser:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-          readOnly: true
-        username:
-          type: string
-          readOnly: true
-        display_name:
-          type: string
-          readOnly: true
-        bio:
-          type: string
-          readOnly: true
-        avatar_url:
-          type: string
-          nullable: true
-          readOnly: true
-        date_joined:
-          type: string
-          format: date-time
-          readOnly: true
-      required:
-      - avatar_url
-      - bio
-      - date_joined
-      - display_name
-      - id
-      - username
     PurposeEnum:
       enum:
       - avatar
@@ -2284,8 +2288,8 @@ components:
           format: date-time
           readOnly: true
         me:
-          type: object
-          additionalProperties: {}
+          allOf:
+          - $ref: '#/components/schemas/MyMembership'
           readOnly: true
       required:
       - created_at
@@ -2374,6 +2378,45 @@ components:
           format: uuid
       required:
       - user_id
+    UserProfile:
+      type: object
+      description: 'GET /users/{id}: public profile plus the servers shared with the
+        viewer (FR-PROF-03).'
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+        display_name:
+          type: string
+          readOnly: true
+        bio:
+          type: string
+          readOnly: true
+        avatar_url:
+          type: string
+          nullable: true
+          readOnly: true
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+        mutual_servers:
+          type: array
+          items:
+            $ref: '#/components/schemas/MutualServer'
+          readOnly: true
+      required:
+      - avatar_url
+      - bio
+      - date_joined
+      - display_name
+      - id
+      - mutual_servers
+      - username
     UserStatusEnum:
       enum:
       - online
