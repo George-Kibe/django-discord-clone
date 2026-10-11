@@ -1,0 +1,51 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["Build images"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (full git SHA or version, e.g. 0.3.0). Use an older tag to roll back."
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # Skips cleanly until the server is configured (repository variable DEPLOY_HOST).
+    if: >-
+      vars.DEPLOY_HOST != '' &&
+      (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: https://${{ vars.DOMAIN }}
+    env:
+      IMAGE_TAG: ${{ inputs.image_tag || github.event.workflow_run.head_sha }}
+      TARGET: ${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - name: Configure SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          echo "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+      - name: Sync deployment files
+        run: |
+          rsync -az --delete --relative \
+            compose.yaml compose.prod.yaml infra/caddy infra/scripts \
+            "$TARGET:/srv/app/"
+      - name: Deploy ${{ env.IMAGE_TAG }}
+        run: ssh "$TARGET" "cd /srv/app && IMAGE_TAG='${IMAGE_TAG}' ./infra/scripts/deploy.sh"
