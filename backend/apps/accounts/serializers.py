@@ -24,6 +24,20 @@ class UsernameField(LowercaseCharField):
         super().__init__(min_length=2, max_length=32, validators=[username_validator], **kwargs)
 
 
+class UserSummarySerializer(serializers.ModelSerializer[User]):
+    """Compact user embedded in messages, members and invites."""
+
+    avatar_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ["id", "username", "display_name", "avatar_url"]
+        read_only_fields = fields
+
+    def get_avatar_url(self, user: User) -> str | None:
+        return image_url(user.avatar_public_id, size=128)
+
+
 class PublicUserSerializer(serializers.ModelSerializer[User]):
     avatar_url = serializers.SerializerMethodField()
 

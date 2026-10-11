@@ -243,6 +243,324 @@ paths:
               schema:
                 $ref: '#/components/schemas/Detail'
           description: ''
+  /api/v1/categories/{category_id}:
+    patch:
+      operationId: categories_partial_update
+      parameters:
+      - in: path
+        name: category_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - channels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCategoryRequest'
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+          description: ''
+    delete:
+      operationId: categories_destroy
+      parameters:
+      - in: path
+        name: category_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - channels
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/channels/{channel_id}:
+    get:
+      operationId: channels_retrieve
+      parameters:
+      - in: path
+        name: channel_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - channels
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Channel'
+          description: ''
+    patch:
+      operationId: channels_partial_update
+      parameters:
+      - in: path
+        name: channel_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - channels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedChannelUpdateRequest'
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Channel'
+          description: ''
+    delete:
+      operationId: channels_destroy
+      parameters:
+      - in: path
+        name: channel_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - channels
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/channels/{channel_id}/messages:
+    get:
+      operationId: channels_messages_retrieve
+      parameters:
+      - in: query
+        name: after
+        schema:
+          type: string
+        description: 'Message id: newer messages, oldest first'
+      - in: query
+        name: before
+        schema:
+          type: string
+        description: 'Message id: older messages, newest first'
+      - in: path
+        name: channel_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: query
+        name: limit
+        schema:
+          type: integer
+        description: 1-100, default 50
+      tags:
+      - messages
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessagePage'
+          description: ''
+    post:
+      operationId: channels_messages_create
+      description: A repeated `nonce` returns the original message with 200 (idempotent
+        retry).
+      parameters:
+      - in: path
+        name: channel_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - messages
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageWriteRequest'
+        required: true
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+          description: ''
+  /api/v1/channels/{channel_id}/overwrites:
+    get:
+      operationId: channels_overwrites_list
+      parameters:
+      - in: path
+        name: channel_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - channels
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Overwrite'
+          description: ''
+    put:
+      operationId: channels_overwrites_update
+      summary: Create or replace an overwrite
+      parameters:
+      - in: path
+        name: channel_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - channels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OverwriteWriteRequest'
+        required: true
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Overwrite'
+          description: ''
+  /api/v1/channels/{channel_id}/overwrites/{overwrite_id}:
+    delete:
+      operationId: channels_overwrites_destroy
+      parameters:
+      - in: path
+        name: channel_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: overwrite_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - channels
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/invites/{code}:
+    get:
+      operationId: invites_retrieve
+      summary: Invite preview (public)
+      parameters:
+      - in: path
+        name: code
+        schema:
+          type: string
+        required: true
+      tags:
+      - servers
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitePreview'
+          description: ''
+    delete:
+      operationId: invites_destroy
+      summary: Revoke an invite
+      parameters:
+      - in: path
+        name: code
+        schema:
+          type: string
+        required: true
+      tags:
+      - servers
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/invites/{code}/accept:
+    post:
+      operationId: invites_accept_create
+      parameters:
+      - in: path
+        name: code
+        schema:
+          type: string
+        required: true
+      tags:
+      - servers
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerDetail'
+          description: ''
   /api/v1/media/sign:
     post:
       operationId: media_sign_create
@@ -265,6 +583,50 @@ paths:
               schema:
                 $ref: '#/components/schemas/SignUploadResponse'
           description: ''
+  /api/v1/messages/{message_id}:
+    patch:
+      operationId: messages_partial_update
+      parameters:
+      - in: path
+        name: message_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - messages
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMessageEditRequest'
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+          description: ''
+    delete:
+      operationId: messages_destroy
+      parameters:
+      - in: path
+        name: message_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - messages
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/meta:
     get:
       operationId: meta_retrieve
@@ -281,6 +643,600 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Meta'
+          description: ''
+  /api/v1/permissions:
+    get:
+      operationId: permissions_list
+      description: Permission bits with labels, for the role editor (docs/DATA_MODEL.md#permissions).
+      tags:
+      - meta
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PermissionInfo'
+          description: ''
+  /api/v1/servers/:
+    get:
+      operationId: servers_list
+      summary: Servers I'm a member of
+      tags:
+      - servers
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Server'
+          description: ''
+    post:
+      operationId: servers_create
+      tags:
+      - servers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServerCreateRequest'
+        required: true
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerDetail'
+          description: ''
+  /api/v1/servers/{server_id}:
+    get:
+      operationId: servers_retrieve
+      parameters:
+      - in: path
+        name: server_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - servers
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerDetail'
+          description: ''
+    patch:
+      operationId: servers_partial_update
+      parameters:
+      - in: path
+        name: server_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - servers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedServerUpdateRequest'
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerDetail'
+          description: ''
+    delete:
+      operationId: servers_destroy
+      parameters:
+      - in: path
+        name: server_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - servers
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/servers/{server_id}/categories:
+    get:
+      operationId: servers_categories_list
+      parameters:
+      - in: path
+        name: server_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - channels
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+          description: ''
+    post:
+      operationId: servers_categories_create
+      parameters:
+      - in: path
+        name: server_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - channels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryRequest'
+        required: true
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+          description: ''
+  /api/v1/servers/{server_id}/channels:
+    get:
+      operationId: servers_channels_list
+      summary: Channels visible to me
+      parameters:
+      - in: path
+        name: server_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - channels
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Channel'
+          description: ''
+    post:
+      operationId: servers_channels_create
+      parameters:
+      - in: path
+        name: server_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - channels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChannelWriteRequest'
+        required: true
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Channel'
+          description: ''
+  /api/v1/servers/{server_id}/channels/reorder:
+    patch:
+      operationId: servers_channels_reorder_partial_update
+      parameters:
+      - in: path
+        name: server_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - channels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedChannelReorderRequest'
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Channel'
+          description: ''
+  /api/v1/servers/{server_id}/invites:
+    get:
+      operationId: servers_invites_list
+      parameters:
+      - in: path
+        name: server_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - servers
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Invite'
+          description: ''
+    post:
+      operationId: servers_invites_create
+      parameters:
+      - in: path
+        name: server_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - servers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InviteCreateRequest'
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invite'
+          description: ''
+  /api/v1/servers/{server_id}/join:
+    post:
+      operationId: servers_join_create
+      summary: Join a public server
+      parameters:
+      - in: path
+        name: server_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - servers
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerDetail'
+          description: ''
+  /api/v1/servers/{server_id}/leave:
+    post:
+      operationId: servers_leave_create
+      parameters:
+      - in: path
+        name: server_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - servers
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/servers/{server_id}/members:
+    get:
+      operationId: servers_members_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: path
+        name: server_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - servers
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedMemberList'
+          description: ''
+  /api/v1/servers/{server_id}/members/{user_id}:
+    patch:
+      operationId: servers_members_partial_update
+      parameters:
+      - in: path
+        name: server_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: user_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - servers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMemberUpdateRequest'
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
+          description: ''
+  /api/v1/servers/{server_id}/roles:
+    get:
+      operationId: servers_roles_list
+      parameters:
+      - in: path
+        name: server_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - servers
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Role'
+          description: ''
+    post:
+      operationId: servers_roles_create
+      parameters:
+      - in: path
+        name: server_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - servers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleRequest'
+        required: true
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+          description: ''
+  /api/v1/servers/{server_id}/roles/{role_id}:
+    patch:
+      operationId: servers_roles_partial_update
+      parameters:
+      - in: path
+        name: role_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: server_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - servers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedRoleRequest'
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+          description: ''
+    delete:
+      operationId: servers_roles_destroy
+      parameters:
+      - in: path
+        name: role_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: server_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - servers
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/servers/{server_id}/roles/reorder:
+    patch:
+      operationId: servers_roles_reorder_partial_update
+      parameters:
+      - in: path
+        name: server_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - servers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedRoleReorderRequest'
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Role'
+          description: ''
+  /api/v1/servers/{server_id}/transfer-ownership:
+    post:
+      operationId: servers_transfer_ownership_create
+      parameters:
+      - in: path
+        name: server_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - servers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferOwnershipRequest'
+        required: true
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerDetail'
+          description: ''
+  /api/v1/topics:
+    get:
+      operationId: topics_list
+      tags:
+      - servers
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Topic'
           description: ''
   /api/v1/users/{id}:
     get:
@@ -405,6 +1361,120 @@ components:
           maxLength: 255
       required:
       - public_id
+    Category:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        position:
+          type: integer
+          readOnly: true
+      required:
+      - id
+      - name
+      - position
+    CategoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+      required:
+      - name
+    Channel:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        server_id:
+          type: string
+          format: uuid
+          readOnly: true
+        category_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        type:
+          allOf:
+          - $ref: '#/components/schemas/ChannelTypeEnum'
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        topic:
+          type: string
+          readOnly: true
+        position:
+          type: integer
+          readOnly: true
+        slowmode_seconds:
+          type: integer
+          readOnly: true
+        permissions:
+          type: integer
+          readOnly: true
+          description: Your effective permissions here.
+      required:
+      - category_id
+      - id
+      - name
+      - permissions
+      - position
+      - server_id
+      - slowmode_seconds
+      - topic
+      - type
+    ChannelOrderItemRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        category_id:
+          type: string
+          format: uuid
+          nullable: true
+        position:
+          type: integer
+          minimum: 0
+      required:
+      - category_id
+      - id
+      - position
+    ChannelTypeEnum:
+      enum:
+      - text
+      type: string
+      description: '* `text` - Text'
+    ChannelWriteRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        topic:
+          type: string
+          maxLength: 1024
+        category_id:
+          type: string
+          format: uuid
+          nullable: true
+        slowmode_seconds:
+          type: integer
+          maximum: 21600
+          minimum: 0
+      required:
+      - name
     Detail:
       type: object
       properties:
@@ -455,6 +1525,117 @@ components:
       description: |-
         * `ok` - ok
         * `error` - error
+    Invite:
+      type: object
+      properties:
+        code:
+          type: string
+          readOnly: true
+        server_id:
+          type: string
+          format: uuid
+          readOnly: true
+        inviter:
+          allOf:
+          - $ref: '#/components/schemas/UserSummary'
+          readOnly: true
+        max_uses:
+          type: integer
+          readOnly: true
+          nullable: true
+        uses:
+          type: integer
+          readOnly: true
+        expires_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - code
+      - created_at
+      - expires_at
+      - inviter
+      - max_uses
+      - server_id
+      - uses
+    InviteCreateRequest:
+      type: object
+      properties:
+        max_age:
+          allOf:
+          - $ref: '#/components/schemas/MaxAgeEnum'
+          default: 604800
+          description: |-
+            Seconds; 0 = never.
+
+            * `0` - 0
+            * `1800` - 1800
+            * `3600` - 3600
+            * `21600` - 21600
+            * `43200` - 43200
+            * `86400` - 86400
+            * `604800` - 604800
+        max_uses:
+          type: integer
+          maximum: 100
+          minimum: 0
+          default: 0
+          description: 0 = unlimited.
+    InvitePreview:
+      type: object
+      properties:
+        code:
+          type: string
+          readOnly: true
+        server:
+          allOf:
+          - $ref: '#/components/schemas/InviteServer'
+          readOnly: true
+        inviter:
+          allOf:
+          - $ref: '#/components/schemas/UserSummary'
+          readOnly: true
+        expires_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - code
+      - expires_at
+      - inviter
+      - server
+    InviteServer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        icon_url:
+          type: string
+          nullable: true
+          readOnly: true
+        member_count:
+          type: integer
+          readOnly: true
+      required:
+      - description
+      - icon_url
+      - id
+      - member_count
+      - name
     LoginRequest:
       type: object
       properties:
@@ -469,6 +1650,24 @@ components:
       required:
       - email
       - password
+    MaxAgeEnum:
+      enum:
+      - 0
+      - 1800
+      - 3600
+      - 21600
+      - 43200
+      - 86400
+      - 604800
+      type: integer
+      description: |-
+        * `0` - 0
+        * `1800` - 1800
+        * `3600` - 3600
+        * `21600` - 21600
+        * `43200` - 43200
+        * `86400` - 86400
+        * `604800` - 604800
     Me:
       type: object
       description: The signed-in user's own profile (response shape).
@@ -516,6 +1715,112 @@ components:
       - id
       - status
       - username
+    Member:
+      type: object
+      properties:
+        user:
+          allOf:
+          - $ref: '#/components/schemas/UserSummary'
+          readOnly: true
+        nickname:
+          type: string
+          readOnly: true
+        role_ids:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        is_owner:
+          type: boolean
+          readOnly: true
+        joined_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - is_owner
+      - joined_at
+      - nickname
+      - role_ids
+      - user
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        channel_id:
+          type: string
+          format: uuid
+          readOnly: true
+        author:
+          allOf:
+          - $ref: '#/components/schemas/UserSummary'
+          readOnly: true
+          nullable: true
+        type:
+          allOf:
+          - $ref: '#/components/schemas/MessageTypeEnum'
+          readOnly: true
+        content:
+          type: string
+          readOnly: true
+        nonce:
+          type: string
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        edited_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - author
+      - channel_id
+      - content
+      - created_at
+      - edited_at
+      - id
+      - nonce
+      - type
+    MessagePage:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        has_more:
+          type: boolean
+      required:
+      - has_more
+      - results
+    MessageTypeEnum:
+      enum:
+      - default
+      - system
+      type: string
+      description: |-
+        * `default` - Default
+        * `system` - System
+    MessageWriteRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        nonce:
+          type: string
+          nullable: true
+          maxLength: 64
+      required:
+      - content
     Meta:
       type: object
       properties:
@@ -529,6 +1834,75 @@ components:
       - environment
       - name
       - version
+    Overwrite:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        role_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        user_id:
+          type: string
+          nullable: true
+          readOnly: true
+        allow:
+          type: integer
+          readOnly: true
+        deny:
+          type: integer
+          readOnly: true
+      required:
+      - allow
+      - deny
+      - id
+      - role_id
+      - user_id
+    OverwriteWriteRequest:
+      type: object
+      properties:
+        role_id:
+          type: string
+          format: uuid
+          nullable: true
+        user_id:
+          type: string
+          format: uuid
+          nullable: true
+        allow:
+          type: integer
+        deny:
+          type: integer
+      required:
+      - allow
+      - deny
+    PaginatedMemberList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Member'
     PasswordChangeRequest:
       type: object
       properties:
@@ -562,6 +1936,38 @@ components:
       - password
       - token
       - uid
+    PatchedCategoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+    PatchedChannelReorderRequest:
+      type: object
+      properties:
+        channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChannelOrderItemRequest'
+    PatchedChannelUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        topic:
+          type: string
+          maxLength: 1024
+        category_id:
+          type: string
+          format: uuid
+          nullable: true
+        slowmode_seconds:
+          type: integer
+          maximum: 21600
+          minimum: 0
     PatchedMeUpdateRequest:
       type: object
       description: PATCH /users/me input. Responses use MeSerializer.
@@ -579,6 +1985,84 @@ components:
           maxLength: 500
         status:
           $ref: '#/components/schemas/UserStatusEnum'
+    PatchedMemberUpdateRequest:
+      type: object
+      properties:
+        nickname:
+          type: string
+          maxLength: 32
+        role_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+    PatchedMessageEditRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 4000
+    PatchedRoleReorderRequest:
+      type: object
+      properties:
+        role_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Highest first.
+    PatchedRoleRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        color:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        permissions:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        mentionable:
+          type: boolean
+        hoist:
+          type: boolean
+    PatchedServerUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 1000
+        icon_public_id:
+          type: string
+          maxLength: 255
+        is_public:
+          type: boolean
+        topic_id:
+          type: integer
+          nullable: true
+    PermissionInfo:
+      type: object
+      properties:
+        name:
+          type: string
+        value:
+          type: integer
+        description:
+          type: string
+      required:
+      - description
+      - name
+      - value
     PublicUser:
       type: object
       properties:
@@ -613,8 +2097,11 @@ components:
     PurposeEnum:
       enum:
       - avatar
+      - server_icon
       type: string
-      description: '* `avatar` - avatar'
+      description: |-
+        * `avatar` - avatar
+        * `server_icon` - server_icon
     RegisterRequest:
       type: object
       properties:
@@ -640,6 +2127,177 @@ components:
       - email
       - password
       - username
+    Role:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        color:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        position:
+          type: integer
+          readOnly: true
+        permissions:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        is_default:
+          type: boolean
+          readOnly: true
+        mentionable:
+          type: boolean
+        hoist:
+          type: boolean
+      required:
+      - id
+      - is_default
+      - name
+      - position
+    RoleRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        color:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        permissions:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        mentionable:
+          type: boolean
+        hoist:
+          type: boolean
+      required:
+      - name
+    Server:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        icon_url:
+          type: string
+          nullable: true
+          readOnly: true
+        owner_id:
+          type: string
+          format: uuid
+          readOnly: true
+        topic:
+          allOf:
+          - $ref: '#/components/schemas/Topic'
+          readOnly: true
+        is_public:
+          type: boolean
+          readOnly: true
+        member_count:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - description
+      - icon_url
+      - id
+      - is_public
+      - member_count
+      - name
+      - owner_id
+      - topic
+    ServerCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 1000
+        icon_public_id:
+          type: string
+          maxLength: 255
+        is_public:
+          type: boolean
+        topic_id:
+          type: integer
+          nullable: true
+      required:
+      - name
+    ServerDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        icon_url:
+          type: string
+          nullable: true
+          readOnly: true
+        owner_id:
+          type: string
+          format: uuid
+          readOnly: true
+        topic:
+          allOf:
+          - $ref: '#/components/schemas/Topic'
+          readOnly: true
+        is_public:
+          type: boolean
+          readOnly: true
+        member_count:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        me:
+          type: object
+          additionalProperties: {}
+          readOnly: true
+      required:
+      - created_at
+      - description
+      - icon_url
+      - id
+      - is_public
+      - me
+      - member_count
+      - name
+      - owner_id
+      - topic
     SignUploadRequestRequest:
       type: object
       properties:
@@ -691,6 +2349,31 @@ components:
           maxLength: 1024
       required:
       - token
+    Topic:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 50
+        slug:
+          type: string
+          maxLength: 50
+          pattern: ^[-a-zA-Z0-9_]+$
+      required:
+      - id
+      - name
+      - slug
+    TransferOwnershipRequest:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+      required:
+      - user_id
     UserStatusEnum:
       enum:
       - online
@@ -703,6 +2386,29 @@ components:
         * `idle` - Idle
         * `dnd` - Do not disturb
         * `invisible` - Invisible
+    UserSummary:
+      type: object
+      description: Compact user embedded in messages, members and invites.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+        display_name:
+          type: string
+          readOnly: true
+        avatar_url:
+          type: string
+          nullable: true
+          readOnly: true
+      required:
+      - avatar_url
+      - display_name
+      - id
+      - username
   securitySchemes:
     cookieAuth:
       type: apiKey

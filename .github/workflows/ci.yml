@@ -102,6 +102,10 @@ jobs:
         run: |
           uv run python manage.py spectacular --validate --fail-on-warn --file schema.yaml
           git diff --exit-code -- schema.yaml || (echo "::error::backend/schema.yaml is stale. Run 'make gen-api' and commit." && exit 1)
+      - name: Permission constants are up to date
+        run: |
+          uv run python manage.py export_permissions ../frontend/src/types/permissions.ts
+          git diff --exit-code -- ../frontend/src/types/permissions.ts || (echo "::error::frontend/src/types/permissions.ts is stale. Run 'make gen-api' and commit." && exit 1)
       - name: Dependency audit
         run: |
           uv export --locked --no-dev --format requirements-txt > "$RUNNER_TEMP/requirements.txt"

@@ -44,6 +44,9 @@ LOCAL_APPS = [
     "apps.accounts",
     "apps.realtime",
     "apps.media",
+    "apps.servers",
+    "apps.chat_channels",
+    "apps.messaging",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
@@ -180,6 +183,8 @@ REST_FRAMEWORK: dict[str, Any] = {
         "auth_password_reset": "5/hour",
         "auth_verification": "10/hour",
         "media_sign": "30/min",
+        "message_send": "10/10s",
+        "invite_create": "20/hour",
     },
 }
 
@@ -241,6 +246,7 @@ CLOUDINARY_FOLDER_PREFIX = env("CLOUDINARY_FOLDER_PREFIX", default=ENVIRONMENT)
 MEDIA_UPLOAD_RULES: dict[str, dict[str, Any]] = {
     # purpose: max bytes, allowed formats (FR-PROF-02, FR-MSG-10)
     "avatar": {"max_bytes": 5 * 1024 * 1024, "formats": ["jpg", "jpeg", "png", "webp", "gif"]},
+    "server_icon": {"max_bytes": 5 * 1024 * 1024, "formats": ["jpg", "jpeg", "png", "webp", "gif"]},
 }
 PENDING_UPLOAD_TTL_HOURS = 24
 
