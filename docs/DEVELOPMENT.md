@@ -100,7 +100,12 @@ Commit the lockfiles (`backend/uv.lock`, `frontend/pnpm-lock.yaml`). Check that 
 
 ### Email in development
 
-Outgoing mail goes to **Mailpit** (http://localhost:8025) unless `.env` sets `EMAIL_URL`. Keep it that way for day-to-day work: the E2E suite registers throwaway `@example.com` users and reads their emails from Mailpit's API. To test delivery through a real provider (e.g. Gmail), set `EMAIL_URL` temporarily (see the table below), run `docker compose up -d`, and remove it again before running E2E.
+Emails are routed by recipient (`apps/core/mail.py`):
+
+- **Test addresses** (`@example.com/.net/.org`, `*.test`, `*.example`, `*.invalid`, `localhost`) always go to **Mailpit** (http://localhost:8025). The E2E suite registers such users and reads their emails from Mailpit's API.
+- **Real addresses** are delivered through your SMTP account when `.env` configures one, either `EMAIL_URL=smtp+tls://…` or Gmail via `SENDER_EMAIL` + `EMAIL_PASSWORD` (an [app password](https://myaccount.google.com/apppasswords)). Without either, they go to Mailpit too.
+
+When sending through Gmail, a `DEFAULT_FROM_EMAIL` at `localhost` is replaced by the Gmail address (Gmail only sends as the signed-in account). After changing email settings in `.env`, run `docker compose up -d` (not `restart`) so the containers pick them up.
 
 ### Frontend
 
@@ -138,6 +143,7 @@ Outgoing mail goes to **Mailpit** (http://localhost:8025) unless `.env` sets `EM
 | `REDIS_URL` | `redis://redis:6379` | api, worker, beat | DB numbers are added in settings (§6 of ARCHITECTURE) |
 | `CLOUDINARY_URL` | `cloudinary://<key>:<secret>@<cloud_name>` | api, worker | **Secret.** Ask the project owner |
 | `CLOUDINARY_FOLDER_PREFIX` | `dev` | api | Keeps dev/prod assets apart |
+| `SENDER_EMAIL` / `EMAIL_PASSWORD` | *(unset)* | api, worker | Gmail shortcut (app password) when `EMAIL_URL` isn't set |
 | `EMAIL_URL` | *(unset → Mailpit in dev)* | api, worker | SMTP URL, e.g. `smtp+tls://user:pass@host:587`. URL-encode special characters in the user and password (`@` → `%40`, space → `%20`). Gmail: `smtp+tls://you%40gmail.com:app-password@smtp.gmail.com:587` with a Google [app password](https://myaccount.google.com/apppasswords). |
 | `DEFAULT_FROM_EMAIL` | `Discord Clone <no-reply@localhost>` | api, worker | |
 | `JWT_ACCESS_MINUTES` / `JWT_REFRESH_DAYS` | `15` / `14` | api | |
@@ -167,5 +173,6 @@ Outgoing mail goes to **Mailpit** (http://localhost:8025) unless `.env` sets `EM
 | File changes not picked up (macOS/Windows) | Make sure the bind mounts are in place. Set `WATCHPACK_POLLING=true` for `web` |
 | Port 80 already in use | Stop the local web server, or change the Caddy port mapping in `compose.override.yaml` |
 | Edited `.env` but nothing changed | `docker compose restart` does **not** re-read `.env`. Run `docker compose up -d` so the containers are recreated |
-| No emails in Mailpit | Check `docker compose logs worker`. Emails are sent by the Celery worker after the database commit. If `.env` sets `EMAIL_URL`, mail goes there instead of Mailpit |
+| No emails in Mailpit | Check `docker compose logs worker`. Emails are sent by the Celery worker after the database commit. Real addresses go to your SMTP/Gmail account when one is configured, not to Mailpit |
+| Gmail emails don't arrive | Check `docker compose logs worker` for SMTP errors. Gmail needs an app password (2-Step Verification on). Look in spam: local links point at `localhost` |
 | Stuck on a loading spinner after login | The `session` cookie exists but the API rejects the tokens. Clear the site's cookies or log out |

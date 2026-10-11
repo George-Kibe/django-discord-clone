@@ -250,30 +250,22 @@ MEDIA_UPLOAD_RULES: dict[str, dict[str, Any]] = {
 }
 PENDING_UPLOAD_TTL_HOURS = 24
 
-# Django 6.1 replaces the EMAIL_* settings with MAILERS. EMAIL_URL (e.g. smtp+tls://user:pass@host:587)
-# is parsed by django-environ and translated into the new structure.
-_email = env.email_url("EMAIL_URL", default="consolemail://")
-_SMTP_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-_smtp_options = {
-    "host": _email.get("EMAIL_HOST"),
-    "port": _email.get("EMAIL_PORT"),
-    "username": _email.get("EMAIL_HOST_USER"),
-    "password": _email.get("EMAIL_HOST_PASSWORD"),
-    "use_tls": _email.get("EMAIL_USE_TLS"),
-    "use_ssl": _email.get("EMAIL_USE_SSL"),
-    "timeout": 10,
-}
-MAILERS = {
-    "default": {
-        "BACKEND": _email["EMAIL_BACKEND"],
-        "OPTIONS": (
-            {k: v for k, v in _smtp_options.items() if v not in (None, "")}
-            if _email["EMAIL_BACKEND"] == _SMTP_BACKEND
-            else {}
-        ),
-    }
-}
+# Django 6.1 replaces the EMAIL_* settings with MAILERS (apps/core/mail.py builds them).
+# EMAIL_URL (e.g. smtp+tls://user:pass@host:587) wins; otherwise SENDER_EMAIL + EMAIL_PASSWORD
+# configure Gmail. DEV_CAPTURE_EMAIL_URL (dev Compose: Mailpit) captures test-domain recipients.
+from apps.core.mail import build_mailers  # noqa: E402
+
+_GMAIL_USER = env("SENDER_EMAIL", default="")
+MAILERS = build_mailers(
+    email_url=env("EMAIL_URL", default=""),
+    gmail_user=_GMAIL_USER,
+    gmail_password=env("EMAIL_PASSWORD", default=""),
+    capture_url=env("DEV_CAPTURE_EMAIL_URL", default=""),
+)
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Discord Clone <no-reply@localhost>")
+if _GMAIL_USER and "@localhost" in DEFAULT_FROM_EMAIL:
+    # Gmail only sends as the authenticated account; a localhost sender also looks like spam.
+    DEFAULT_FROM_EMAIL = f"Discord Clone <{_GMAIL_USER}>"
 
 # --------------------------------------------------------------------------- logging
 

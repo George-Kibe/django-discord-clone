@@ -10,8 +10,10 @@ x-backend-dev: &backend-dev
   image: discord-clone-api:dev
   environment:
     DJANGO_SETTINGS_MODULE: config.settings.dev
-    # Dev email goes to Mailpit unless .env sets EMAIL_URL explicitly (E2E reads Mailpit).
-    EMAIL_URL: ${EMAIL_URL:-smtp://mailpit:1025}
+    # Test-domain recipients (example.com, *.test) are always captured by Mailpit (E2E reads it).
+    # Real addresses go through EMAIL_URL or SENDER_EMAIL/EMAIL_PASSWORD from .env, or also
+    # to Mailpit when neither is set.
+    DEV_CAPTURE_EMAIL_URL: smtp://mailpit:1025
   volumes:
     - ./backend:/app
 

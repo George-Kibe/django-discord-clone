@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- Development email: sign-up, resend and reset emails to real addresses are delivered through the SMTP/Gmail account in `.env` (`EMAIL_URL`, or `SENDER_EMAIL` + `EMAIL_PASSWORD`). Test-domain recipients are still captured by Mailpit. Previously everything went to Mailpit.
+
 ## [0.4.0] - 2026-10-11
 
 Phase 3: servers, channels & messages.
