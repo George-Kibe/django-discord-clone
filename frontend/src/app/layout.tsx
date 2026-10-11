@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
+import { Toaster } from "@/components/ui/sonner";
+
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -36,6 +38,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-full flex-col">
         <Providers>{children}</Providers>
+        <Toaster theme="dark" position="bottom-right" />
       </body>
     </html>
   );
