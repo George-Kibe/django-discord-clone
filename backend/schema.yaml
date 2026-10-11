@@ -1,0 +1,98 @@
+openapi: 3.0.3
+info:
+  title: Discord Clone API
+  version: 0.1.0
+  description: REST API for the Discord clone. The WebSocket protocol is documented
+    in docs/API.md.
+paths:
+  /api/health/live:
+    get:
+      operationId: api_health_live_retrieve
+      description: Process is up. Used by Docker health checks; never touches dependencies.
+      tags:
+      - health
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+          description: ''
+  /api/health/ready:
+    get:
+      operationId: api_health_ready_retrieve
+      description: Dependencies (Postgres, Redis) are reachable.
+      tags:
+      - health
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+          description: ''
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+          description: ''
+  /api/v1/meta:
+    get:
+      operationId: meta_retrieve
+      description: Public build/environment info for the frontend.
+      tags:
+      - meta
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Meta'
+          description: ''
+components:
+  schemas:
+    Health:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+        checks:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+      - status
+    Meta:
+      type: object
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+        environment:
+          type: string
+      required:
+      - environment
+      - name
+      - version
+    StatusEnum:
+      enum:
+      - ok
+      - error
+      type: string
+      description: |-
+        * `ok` - ok
+        * `error` - error
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
