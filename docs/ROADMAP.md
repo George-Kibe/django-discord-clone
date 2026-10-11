@@ -78,7 +78,8 @@ The production pipeline (Phase 2) comes deliberately early, so every later featu
 - [ ] **Owner:** VPS + domain + DNS (A/AAAA, SPF/DKIM/DMARC for mail)
 - [ ] **Owner:** production email provider (`EMAIL_URL`), backup bucket + age key pair, healthchecks.io/uptime monitor
 - [x] Host disk/memory/unhealthy-container alert (`infra/scripts/host-health.sh` + cron → heartbeat)
-- [ ] Sentry for frontend + backend (backend wiring done; needs the Sentry decision/DSN)
+- [x] Sentry wiring for backend, Celery and Next.js (server + browser via `/monitoring` tunnel), privacy-hardened and verified with probe requests. Off until a DSN is set
+- [ ] **Owner:** create the Sentry projects and set `SENTRY_DSN` (server `.env`) + `NEXT_PUBLIC_SENTRY_DSN` (GitHub variable)
 - [ ] First production deploy + restore drill on the real server
 
 **Exit criteria:** a merge to `main` deploys to production in < 10 min with no manual steps. HTTPS grade A (SSL Labs). A backup restored into a scratch DB successfully. Errors reach Sentry.
