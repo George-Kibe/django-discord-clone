@@ -30,12 +30,21 @@ SENTRY_DSN = env("SENTRY_DSN", default="")
 if SENTRY_DSN:
     import sentry_sdk
 
+    from apps.core.sentry import before_breadcrumb, before_send
+
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         environment=ENVIRONMENT,
         release=env("GIT_SHA", default=None),
         traces_sample_rate=env.float("SENTRY_TRACES_SAMPLE_RATE", default=0.0),
+        # No cookies/auth headers/user IPs, and no request bodies (login/reset payloads).
         send_default_pii=False,
+        max_request_body_size="never",
+        # Frame locals include request reprs (full URL) and could hold credentials; keep them out.
+        include_local_variables=False,
+        # Query strings can carry tokens: strip them from URLs and breadcrumbs.
+        before_send=before_send,  # type: ignore[arg-type]
+        before_breadcrumb=before_breadcrumb,
     )
 
 # HSTS preload is enabled deliberately later, once the domain is stable (docs/ARCHITECTURE.md §7).
