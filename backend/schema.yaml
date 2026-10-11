@@ -327,7 +327,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchedMeRequest'
+              $ref: '#/components/schemas/PatchedMeUpdateRequest'
       security:
       - jwtCookieAuth: []
       - cookieAuth: []
@@ -471,6 +471,7 @@ components:
       - password
     Me:
       type: object
+      description: The signed-in user's own profile (response shape).
       properties:
         id:
           type: string
@@ -478,15 +479,13 @@ components:
           readOnly: true
         username:
           type: string
-          pattern: ^[a-z0-9_.]{2,32}$
-          maxLength: 32
-          minLength: 2
+          readOnly: true
         display_name:
           type: string
-          maxLength: 64
+          readOnly: true
         bio:
           type: string
-          maxLength: 500
+          readOnly: true
         avatar_url:
           type: string
           nullable: true
@@ -501,28 +500,22 @@ components:
           readOnly: true
           title: Email address
         status:
-          $ref: '#/components/schemas/MeStatusEnum'
+          allOf:
+          - $ref: '#/components/schemas/UserStatusEnum'
+          readOnly: true
         email_verified:
           type: boolean
           readOnly: true
       required:
       - avatar_url
+      - bio
       - date_joined
+      - display_name
       - email
       - email_verified
       - id
-    MeStatusEnum:
-      enum:
-      - online
-      - idle
-      - dnd
-      - invisible
-      type: string
-      description: |-
-        * `online` - Online
-        * `idle` - Idle
-        * `dnd` - Do not disturb
-        * `invisible` - Invisible
+      - status
+      - username
     Meta:
       type: object
       properties:
@@ -569,8 +562,9 @@ components:
       - password
       - token
       - uid
-    PatchedMeRequest:
+    PatchedMeUpdateRequest:
       type: object
+      description: PATCH /users/me input. Responses use MeSerializer.
       properties:
         username:
           type: string
@@ -584,7 +578,7 @@ components:
           type: string
           maxLength: 500
         status:
-          $ref: '#/components/schemas/MeStatusEnum'
+          $ref: '#/components/schemas/UserStatusEnum'
     PublicUser:
       type: object
       properties:
@@ -697,6 +691,18 @@ components:
           maxLength: 1024
       required:
       - token
+    UserStatusEnum:
+      enum:
+      - online
+      - idle
+      - dnd
+      - invisible
+      type: string
+      description: |-
+        * `online` - Online
+        * `idle` - Idle
+        * `dnd` - Do not disturb
+        * `invisible` - Invisible
   securitySchemes:
     cookieAuth:
       type: apiKey

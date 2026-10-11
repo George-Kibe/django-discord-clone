@@ -26,6 +26,7 @@ def test_delete_stale_unverified_users():
 
 
 def test_prune_auth_audit_log():
+    """NFR-PRIV-01: audit entries (which hold IP addresses) are kept for 90 days."""
     old = AuthAuditEvent.objects.create(event="login")
     AuthAuditEvent.objects.filter(pk=old.pk).update(created_at=timezone.now() - timedelta(days=91))
     AuthAuditEvent.objects.create(event="login")

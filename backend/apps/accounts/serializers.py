@@ -37,12 +37,23 @@ class PublicUserSerializer(serializers.ModelSerializer[User]):
 
 
 class MeSerializer(PublicUserSerializer):
-    username = UsernameField(required=False)
+    """The signed-in user's own profile (response shape)."""
+
     email_verified = serializers.BooleanField(source="is_email_verified", read_only=True)
 
     class Meta(PublicUserSerializer.Meta):
         fields = [*PublicUserSerializer.Meta.fields, "email", "status", "email_verified"]
-        read_only_fields = ["id", "email", "avatar_url", "email_verified", "date_joined"]
+        read_only_fields = fields
+
+
+class MeUpdateSerializer(serializers.ModelSerializer[User]):
+    """PATCH /users/me input. Responses use MeSerializer."""
+
+    username = UsernameField(required=False)
+
+    class Meta:
+        model = User
+        fields = ["username", "display_name", "bio", "status"]
 
     def validate_username(self, value: str) -> str:
         if User.objects.filter(username=value).exclude(pk=self.instance.pk).exists():  # type: ignore[union-attr]

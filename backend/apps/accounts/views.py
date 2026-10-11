@@ -16,6 +16,7 @@ from apps.media.tasks import delete_asset
 from . import services
 from .authentication import enforce_csrf, user_from_access_token
 from .cookies import ACCESS_COOKIE, REFRESH_COOKIE, clear_auth_cookies, set_auth_cookies
+from .exceptions import TokenNotValid
 from .models import User
 from .serializers import (
     AvatarSerializer,
@@ -24,6 +25,7 @@ from .serializers import (
     EmailSerializer,
     LoginSerializer,
     MeSerializer,
+    MeUpdateSerializer,
     PasswordChangeSerializer,
     PasswordResetConfirmSerializer,
     PublicUserSerializer,
@@ -107,6 +109,13 @@ class RefreshView(AnonymousAuthView):
 
     throttle_classes = []
     csrf_protected = False
+
+    def handle_exception(self, exc: Exception) -> Response:
+        response = super().handle_exception(exc)
+        if isinstance(exc, TokenNotValid):
+            # Dead session: drop the cookies (incl. the routing hint) so the client stops retrying.
+            clear_auth_cookies(response)
+        return response
 
     @extend_schema(
         request=None,
@@ -213,12 +222,13 @@ class MeView(APIView):
     def get(self, request: Request) -> Response:
         return Response(MeSerializer(current_user(request)).data)
 
-    @extend_schema(request=MeSerializer, responses=MeSerializer, tags=USER_TAGS)
+    @extend_schema(request=MeUpdateSerializer, responses=MeSerializer, tags=USER_TAGS)
     def patch(self, request: Request) -> Response:
-        serializer = MeSerializer(current_user(request), data=request.data, partial=True)
+        user = current_user(request)
+        serializer = MeUpdateSerializer(user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(serializer.data)
+        return Response(MeSerializer(user).data)
 
 
 class EmailChangeView(APIView):

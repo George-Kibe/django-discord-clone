@@ -130,7 +130,7 @@ EMAIL_VERIFICATION_MAX_AGE = 60 * 60 * 24 * 3
 UNVERIFIED_ACCOUNT_TTL_DAYS = 7  # FR-AUTH-02
 AUTH_AUDIT_RETENTION_DAYS = 90  # NFR-PRIV-01
 
-AUTH_PASSWORD_VALIDATORS = [
+AUTH_PASSWORD_VALIDATORS: list[dict[str, Any]] = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
@@ -192,6 +192,10 @@ SPECTACULAR_SETTINGS: dict[str, Any] = {
     "SERVE_INCLUDE_SCHEMA": False,
     "SCHEMA_PATH_PREFIX": r"/api/v[0-9]+",
     "COMPONENT_SPLIT_REQUEST": True,
+    "ENUM_NAME_OVERRIDES": {
+        "UserStatusEnum": "apps.accounts.models.User.Status",
+        "HealthStatusEnum": ["ok", "error"],
+    },
 }
 
 # --------------------------------------------------------------------------- Celery

@@ -1,4 +1,8 @@
-"""Registration, verification, login, refresh, logout, CSRF (FR-AUTH-01..04, NFR-SEC-03/04)."""
+"""Registration, verification, login, refresh, logout, CSRF.
+
+Covers FR-AUTH-01, FR-AUTH-02, FR-AUTH-03, FR-AUTH-04, NFR-SEC-03 and NFR-SEC-04 (CSRF; the
+WebSocket Origin check is in apps/realtime/tests).
+"""
 
 from datetime import timedelta
 from unittest import mock
@@ -279,6 +283,15 @@ def test_refresh_without_cookie(api_client):
     response = api_client.post(reverse("auth-refresh"))
     assert response.status_code == 401
     assert response.json()["code"] == "token_not_valid"
+
+
+def test_failed_refresh_clears_cookies(api_client):
+    api_client.cookies[REFRESH_COOKIE] = "garbage"
+    api_client.cookies[SESSION_HINT_COOKIE] = "1"
+    response = api_client.post(reverse("auth-refresh"))
+    assert response.status_code == 401
+    assert response.cookies[SESSION_HINT_COOKIE].value == ""
+    assert int(response.cookies[REFRESH_COOKIE]["max-age"]) == 0
 
 
 def test_refresh_token_reuse_revokes_all_sessions(auth_client, user, settings):
