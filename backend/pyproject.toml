@@ -1,0 +1,116 @@
+[project]
+name = "discord-clone-api"
+version = "0.1.0"
+description = "Django REST Framework + Channels backend for the Discord clone"
+readme = "../README.md"
+license = "MIT"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    "django>=6.1.2,<6.2",
+    "djangorestframework>=3.18.3",
+    "djangorestframework-simplejwt>=5.5.1",
+    "drf-spectacular>=0.30.0",
+    "django-filter>=26.2",
+    "channels>=4.3.2",
+    "channels-redis>=4.3.0",
+    "celery[redis]>=5.6.3",
+    "django-environ>=0.14.0",
+    "psycopg[binary,pool]>=3.3.6",
+    "uvicorn[standard]>=0.54.0",
+    "redis>=8.1.0",
+    "cloudinary>=1.46.3",
+    "argon2-cffi>=25.1.0",
+    "whitenoise>=6.12.0",
+    "sentry-sdk[django,celery]>=2.71.0",
+    "python-json-logger>=4.2.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-django>=4.14.0",
+    "pytest-asyncio>=1.4.0",
+    "pytest-cov",
+    "factory-boy>=3.3.3",
+    "ruff",
+    "mypy",
+    "django-stubs[compatible-mypy]",
+    "djangorestframework-stubs[compatible-mypy]",
+    "celery-types",
+    "django-debug-toolbar",
+    "daphne",  # required by channels.testing
+]
+
+[tool.uv]
+package = false
+
+# ---------------------------------------------------------------- ruff
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+extend-exclude = ["**/migrations/*"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F",   # pycodestyle, pyflakes
+    "I",             # isort
+    "B",             # bugbear
+    "UP",            # pyupgrade
+    "DJ",            # django
+    "S",             # bandit
+    "SIM",           # simplify
+    "RUF",
+    "N",             # naming
+    "C4",            # comprehensions
+    "PTH",           # use pathlib
+]
+ignore = ["RUF012"]  # mutable class attrs are idiomatic in Django/DRF Meta classes
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S101", "S105", "S106"]
+"config/settings/*" = ["F405", "F403"]
+
+# ---------------------------------------------------------------- mypy
+[tool.mypy]
+python_version = "3.14"
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+strict = true
+disallow_subclassing_any = false
+disallow_untyped_decorators = false
+warn_unused_ignores = true
+exclude = ["/migrations/"]
+
+[[tool.mypy.overrides]]
+module = ["*.tests.*", "tests.*", "conftest"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+
+[[tool.mypy.overrides]]
+module = ["environ.*", "cloudinary.*", "channels.*", "channels_redis.*", "pythonjsonlogger.*", "debug_toolbar.*"]
+ignore_missing_imports = true
+
+[tool.django-stubs]
+django_settings_module = "config.settings.test"
+
+# ---------------------------------------------------------------- pytest
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+python_files = ["test_*.py"]
+# --ds wins over the DJANGO_SETTINGS_MODULE env var set in the dev containers.
+addopts = "--ds=config.settings.test --strict-markers --reuse-db -p no:cacheprovider"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+# Deprecations raised by Django are errors so upgrades stay trivial (ADR-002).
+filterwarnings = [
+    "error::DeprecationWarning",
+    "error::PendingDeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["apps", "config"]
+omit = ["*/migrations/*", "*/tests/*", "config/settings/dev.py", "config/settings/prod.py"]
+
+[tool.coverage.report]
+skip_empty = true
+show_missing = true

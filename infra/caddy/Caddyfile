@@ -1,0 +1,39 @@
+# Single-origin edge proxy (ADR-005).
+# SITE_ADDRESS is ":80" in development and the public domain in production
+# (which enables automatic HTTPS).
+{
+	admin off
+}
+
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	request_body {
+		max_size 1MB
+	}
+
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	@backend path /api/* /ws/* /admin/* /static/*
+	handle @backend {
+		reverse_proxy api:8000 {
+			header_up X-Request-ID {http.request.uuid}
+		}
+	}
+
+	handle {
+		reverse_proxy web:3000 {
+			header_up X-Request-ID {http.request.uuid}
+		}
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}
