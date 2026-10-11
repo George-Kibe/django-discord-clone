@@ -66,6 +66,8 @@ make up                         # creates .env from .env.example, builds and sta
 | http://localhost | App (through Caddy) |
 | http://localhost/api/docs/ | OpenAPI / Swagger UI |
 | http://localhost/admin/ | Django admin |
+| http://localhost:3000 | Frontend directly (Next.js dev server) |
+| http://localhost:8000/api/docs/ | Backend directly (Django) |
 | http://localhost:8025 | Mailpit (catches outgoing dev email) |
 
 Common tasks (migrations, tests, shells, seeding) are covered in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).

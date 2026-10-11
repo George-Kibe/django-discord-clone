@@ -30,6 +30,8 @@ Open http://localhost.
 | http://localhost | Next.js app (through Caddy) |
 | http://localhost/api/docs/ | Swagger UI |
 | http://localhost/admin/ | Django admin |
+| http://localhost:3000 | Next.js directly (dev rewrites proxy `/api`, `/ws`, `/admin`, `/static` to Django) |
+| http://localhost:8000/api/docs/ | Django directly: Swagger UI, `/admin/`, `/ws/` |
 | http://localhost:8025 | Mailpit (all outgoing email lands here) |
 | localhost:5432 | Postgres (published in dev only) |
 
@@ -37,7 +39,7 @@ Open http://localhost.
 
 | Service | Image / build | Purpose | Hot reload |
 |---|---|---|---|
-| `caddy` | `caddy:2` | Single-origin proxy on :80 | config reload |
+| `caddy` | `caddy:2` | Single-origin proxy on :80 (the "real" topology) | config reload |
 | `web` | `frontend/Dockerfile` (target `dev`) | `next dev` (Turbopack) | ✅ bind mount |
 | `api` | `backend/Dockerfile` (target `dev`) | `uvicorn --reload` | ✅ bind mount |
 | `worker` | same as api | `celery worker` (auto-restart on change via `watchfiles`) | ✅ |

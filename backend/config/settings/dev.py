@@ -2,6 +2,9 @@ from .base import *
 
 DEBUG = env.bool("DJANGO_DEBUG", default=True)
 
+# Dev is also reachable directly on :3000 (Next) and :8000 (Django), see compose.override.yaml.
+CSRF_TRUSTED_ORIGINS = [*CSRF_TRUSTED_ORIGINS, "http://localhost:3000", "http://localhost:8000"]
+
 INSTALLED_APPS += ["debug_toolbar"]
 MIDDLEWARE.insert(1, "debug_toolbar.middleware.DebugToolbarMiddleware")
 DEBUG_TOOLBAR_CONFIG = {"SHOW_TOOLBAR_CALLBACK": lambda request: DEBUG}
