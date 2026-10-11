@@ -142,19 +142,23 @@ The full template is [`infra/env.production.example`](../infra/env.production.ex
 
 ### Restore runbook
 
+The private key file should stay `chmod 600`. Running the restore container with your own uid (`--user`) lets it read the key.
+
 ```bash
 cd /srv/app
 # List what's available
 ./infra/scripts/dc run --rm backup restore.sh list
 # Restore drill: newest backup into a scratch database (safe while the site runs)
-./infra/scripts/dc run --rm -v ~/discord-clone-backup-key.txt:/key.txt:ro -e BACKUP_AGE_IDENTITY=/key.txt \
+./infra/scripts/dc run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
+  -v ~/discord-clone-backup-key.txt:/key.txt:ro -e BACKUP_AGE_IDENTITY=/key.txt \
   backup restore.sh latest restore_drill
 ./infra/scripts/dc exec db psql -U app -d restore_drill -c 'select count(*) from accounts_user'
 ./infra/scripts/dc exec db dropdb -U app restore_drill
 
 # Real restore into the live database: stop the writers first
 ./infra/scripts/dc stop api worker beat web
-./infra/scripts/dc run --rm -v ~/discord-clone-backup-key.txt:/key.txt:ro -e BACKUP_AGE_IDENTITY=/key.txt \
+./infra/scripts/dc run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
+  -v ~/discord-clone-backup-key.txt:/key.txt:ro -e BACKUP_AGE_IDENTITY=/key.txt \
   backup restore.sh latest            # or daily/app-<timestamp>.dump.age
 ./infra/scripts/dc up -d --wait && curl -fsS https://$DOMAIN/api/health/ready
 rm ~/discord-clone-backup-key.txt     # don't leave the private key on the server

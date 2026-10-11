@@ -32,6 +32,9 @@ teardown() {
   fi
   IMAGE_TAG="$tag" dc down -v --remove-orphans >/dev/null 2>&1 || true
   rm -rf "$work"
+  docker image rm -f "${registry}-api:${tag}" "${registry}-web:${tag}" "${registry}-backup:${tag}" \
+    "${registry}-api:${broken_tag}" "${registry}-web:${broken_tag}" "${registry}-backup:${broken_tag}" \
+    >/dev/null 2>&1 || true
 }
 
 if [ "${1:-}" = --down ]; then teardown; exit 0; fi
@@ -119,7 +122,9 @@ objects="$(dc run --rm --entrypoint rclone backup lsf ':s3:backups/discord-clone
 [ -n "$objects" ] && pass "backup uploaded: ${objects}"
 dc run --rm --entrypoint sh backup -c 'rclone cat ":s3:backups/discord-clone/daily/$(rclone lsf :s3:backups/discord-clone/daily | tail -n1)" | head -c 21' | grep -q "age-encryption.org" \
   && pass "backup is age-encrypted at rest"
-dc run --rm -v "${keyfile}:/key.txt:ro" -e BACKUP_AGE_IDENTITY=/key.txt backup restore.sh latest restore_drill | tail -n 1
+# Run as the invoking user so the 0600 key file stays readable (the image's user is postgres/999).
+dc run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -v "${keyfile}:/key.txt:ro" -e BACKUP_AGE_IDENTITY=/key.txt \
+  backup restore.sh latest restore_drill | tail -n 1
 live="$(dc exec -T db psql -U app -d app -tAc 'select count(*) from accounts_user')"
 restored="$(dc exec -T db psql -U app -d restore_drill -tAc 'select count(*) from accounts_user')"
 [ "$live" = "$restored" ] && [ "$live" -ge 1 ] && pass "restore drill: ${restored}/${live} users restored"
@@ -138,4 +143,3 @@ grep -q "rolling back to ${tag}" "$work/broken-deploy.log" && pass "broken relea
 trap - ERR
 step "Rehearsal passed"
 teardown
-docker image rm -f "${registry}-api:${broken_tag}" "${registry}-web:${broken_tag}" "${registry}-backup:${broken_tag}" >/dev/null 2>&1 || true
