@@ -244,6 +244,23 @@ export interface paths {
         patch: operations["channels_partial_update"];
         trace?: never;
     };
+    "/api/v1/channels/{channel_id}/ack": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark the channel read up to a message */
+        post: operations["channels_ack_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/channels/{channel_id}/messages": {
         parameters: {
             query?: never;
@@ -387,6 +404,22 @@ export interface paths {
         };
         /** @description Permission bits with labels, for the role editor (docs/DATA_MODEL.md#permissions). */
         get: operations["permissions_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/read-states": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["read_states_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -708,6 +741,10 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AckRequest: {
+            /** Format: uuid */
+            message_id: string;
+        };
         AvatarRequest: {
             public_id: string;
         };
@@ -866,6 +903,8 @@ export interface components {
             readonly is_owner: boolean;
             /** Format: date-time */
             readonly joined_at: string;
+            /** @description online, idle, dnd or offline (invisible users appear offline). */
+            readonly presence: components["schemas"]["PresenceEnum"];
         };
         Message: {
             /** Format: uuid */
@@ -1005,12 +1044,25 @@ export interface components {
             value: number;
             description: string;
         };
+        /** @enum {string} */
+        PresenceEnum: "online" | "idle" | "dnd" | "offline";
         /**
          * @description * `avatar` - avatar
          *     * `server_icon` - server_icon
          * @enum {string}
          */
         PurposeEnum: "avatar" | "server_icon";
+        ReadState: {
+            /** Format: uuid */
+            channel_id: string;
+            /** Format: uuid */
+            server_id: string;
+            /** Format: uuid */
+            last_message_id: string | null;
+            /** Format: uuid */
+            last_read_message_id: string | null;
+            mention_count: number;
+        };
         RegisterRequest: {
             /** Format: email */
             email: string;
@@ -1519,6 +1571,31 @@ export interface operations {
             };
         };
     };
+    channels_ack_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AckRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReadState"];
+                };
+            };
+        };
+    };
     channels_messages_retrieve: {
         parameters: {
             query?: {
@@ -1811,6 +1888,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PermissionInfo"][];
+                };
+            };
+        };
+    };
+    read_states_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReadState"][];
                 };
             };
         };

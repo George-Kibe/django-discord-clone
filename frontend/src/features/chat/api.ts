@@ -5,8 +5,8 @@ import {
   useMutation,
   useQueryClient,
   type InfiniteData,
+  type QueryClient,
 } from "@tanstack/react-query";
-import { useEffect } from "react";
 
 import { api } from "@/lib/api/client";
 import type { components } from "@/types/api";
@@ -17,14 +17,13 @@ export type MessagePage = components["schemas"]["MessagePage"];
 /** A message in the UI: real, or an optimistic one still being sent. */
 export type ChatMessage = Message & { pending?: boolean; failed?: boolean };
 
-type Pages = InfiniteData<{ results: ChatMessage[]; has_more: boolean }, string | null>;
+export type Pages = InfiniteData<{ results: ChatMessage[]; has_more: boolean }, string | null>;
 
 export const messageKeys = {
   channel: (channelId: string) => ["channels", channelId, "messages"] as const,
 };
 
 const PAGE_SIZE = 50;
-const POLL_MS = 4000;
 
 /**
  * History, newest page first. Each page's `results` are newest-first, as the API returns them.
@@ -46,7 +45,7 @@ export function useMessages(channelId: string) {
     },
     getNextPageParam: (lastPage) =>
       lastPage.has_more ? (lastPage.results.at(-1)?.id ?? null) : null,
-    staleTime: Infinity, // new messages arrive through polling (Phase 4: WebSocket events)
+    staleTime: Infinity, // kept current by gateway events, backfilled after reconnects
     refetchOnWindowFocus: false,
   });
 }
@@ -84,31 +83,45 @@ export function mergeNewest(data: Pages | undefined, incoming: ChatMessage[]): P
   return { ...data, pages: [{ ...first, results: [...fresh, ...kept] }, ...rest] };
 }
 
-/** Phase 3 stand-in for real-time: fetch messages newer than the newest one we have. */
-export function useNewMessagePolling(channelId: string, enabled: boolean) {
-  const queryClient = useQueryClient();
-  useEffect(() => {
-    if (!enabled) return;
-    let cancelled = false;
-    const key = messageKeys.channel(channelId);
-    const tick = async () => {
-      if (document.hidden) return;
-      const after = newestRealId(queryClient.getQueryData<Pages>(key));
-      if (!after) return;
-      const { data } = await api
-        .GET("/api/v1/channels/{channel_id}/messages", {
-          params: { path: { channel_id: channelId }, query: { after, limit: 100 } },
-        })
-        .catch(() => ({ data: undefined }));
-      if (cancelled || !data?.results.length) return;
-      queryClient.setQueryData<Pages>(key, (old) => mergeNewest(old, data.results));
-    };
-    const id = window.setInterval(() => void tick(), POLL_MS);
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-    };
-  }, [channelId, enabled, queryClient]);
+/** Replaces a message in place (edits arriving over the gateway). */
+export function replaceMessage(data: Pages | undefined, message: ChatMessage): Pages | undefined {
+  if (!data) return data;
+  return {
+    ...data,
+    pages: data.pages.map((p) => ({
+      ...p,
+      results: p.results.map((m) => (m.id === message.id ? message : m)),
+    })),
+  };
+}
+
+export function removeMessage(data: Pages | undefined, id: string): Pages | undefined {
+  if (!data) return data;
+  return {
+    ...data,
+    pages: data.pages.map((p) => ({ ...p, results: p.results.filter((m) => m.id !== id) })),
+  };
+}
+
+const BACKFILL_PAGES = 5;
+
+/**
+ * After a reconnect: fetch what was missed since the newest message we have. Long gaps (more
+ * than a few pages) just reload the channel from the newest page instead.
+ */
+export async function backfillChannel(queryClient: QueryClient, channelId: string) {
+  const key = messageKeys.channel(channelId);
+  for (let page = 0; page < BACKFILL_PAGES; page++) {
+    const after = newestRealId(queryClient.getQueryData<Pages>(key));
+    if (!after) return;
+    const { data } = await api.GET("/api/v1/channels/{channel_id}/messages", {
+      params: { path: { channel_id: channelId }, query: { after, limit: 100 } },
+    });
+    if (!data) return;
+    queryClient.setQueryData<Pages>(key, (old) => mergeNewest(old, data.results));
+    if (!data.has_more) return;
+  }
+  await queryClient.resetQueries({ queryKey: key, exact: true });
 }
 
 function randomNonce(): string {
@@ -183,15 +196,7 @@ export function useEditMessage(channelId: string) {
     },
     onSuccess: (message) =>
       queryClient.setQueryData<Pages>(messageKeys.channel(channelId), (old) =>
-        old
-          ? {
-              ...old,
-              pages: old.pages.map((p) => ({
-                ...p,
-                results: p.results.map((m) => (m.id === message.id ? message : m)),
-              })),
-            }
-          : old,
+        replaceMessage(old, message),
       ),
   });
 }
@@ -200,12 +205,7 @@ export function useDeleteMessage(channelId: string) {
   const queryClient = useQueryClient();
   const removeLocal = (id: string) =>
     queryClient.setQueryData<Pages>(messageKeys.channel(channelId), (old) =>
-      old
-        ? {
-            ...old,
-            pages: old.pages.map((p) => ({ ...p, results: p.results.filter((m) => m.id !== id) })),
-          }
-        : old,
+      removeMessage(old, id),
     );
   return useMutation({
     mutationFn: async (message: ChatMessage) => {

@@ -26,6 +26,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { MentionBadge } from "@/components/mention-badge";
+import { useUnread } from "@/features/realtime/read-states";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import { useMe } from "@/lib/auth/session";
@@ -61,22 +63,43 @@ export function groupChannels(categories: Category[], channels: Channel[]): Grou
   return groups;
 }
 
-function ChannelLink({ channel, canManage }: { channel: Channel; canManage: boolean }) {
+function ChannelLink({
+  channel,
+  canManage,
+  unread,
+  mentions,
+}: {
+  channel: Channel;
+  canManage: boolean;
+  unread: boolean;
+  mentions: number;
+}) {
   const { channelId } = useParams<{ channelId?: string }>();
   const [editing, setEditing] = useState(false);
   const active = channelId === channel.id;
+  const showUnread = unread && !active;
   return (
     <li className="group relative">
       <Link
         href={`/channels/${channel.server_id}/${channel.id}`}
         aria-current={active ? "page" : undefined}
+        data-unread={showUnread}
         className={cn(
-          "flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground",
+          "relative flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground",
           active && "bg-accent text-foreground",
+          showUnread && "font-semibold text-foreground",
         )}
       >
+        {showUnread ? (
+          <span
+            className="absolute top-1/2 -left-2 h-2 w-1 -translate-y-1/2 rounded-r-full bg-foreground"
+            aria-hidden
+          />
+        ) : null}
         <Hash className="size-4 shrink-0 opacity-70" aria-hidden />
         <span className="truncate">{channel.name}</span>
+        {showUnread ? <span className="sr-only">(unread)</span> : null}
+        {mentions > 0 && !active ? <MentionBadge count={mentions} /> : null}
       </Link>
       {canManage ? (
         <>
@@ -223,6 +246,7 @@ function ChannelGroups({
   onAddChannel: (categoryId: string | null) => void;
 }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const { channels: unread, mentions } = useUnread();
   return (
     <nav aria-label="Channels" className="p-2">
       {groups.map(({ category, channels }) => {
@@ -260,7 +284,13 @@ function ChannelGroups({
             {!isCollapsed ? (
               <ul className="grid gap-0.5">
                 {channels.map((channel) => (
-                  <ChannelLink key={channel.id} channel={channel} canManage={canManage} />
+                  <ChannelLink
+                    key={channel.id}
+                    channel={channel}
+                    canManage={canManage}
+                    unread={unread.has(channel.id)}
+                    mentions={mentions.get(channel.id) ?? 0}
+                  />
                 ))}
               </ul>
             ) : null}

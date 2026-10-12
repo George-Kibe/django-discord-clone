@@ -8,10 +8,12 @@ from django.db.models import Max, Prefetch
 from rest_framework import exceptions
 
 from apps.core.permissions import Perm
+from apps.realtime import events
+from apps.realtime.subscriptions import compute as compute_subscriptions
 from apps.servers.access import ServerAccess
 from apps.servers.models import Member, Role
 
-from .models import Category, Channel, PermissionOverwrite
+from .models import Category, Channel, PermissionOverwrite, ReadState
 
 
 def normalize_channel_name(name: str) -> str:
@@ -68,9 +70,11 @@ def _category(access: ServerAccess, category_id: Any) -> Category | None:
 def create_category(access: ServerAccess, name: str) -> Category:
     access.require(Perm.MANAGE_CHANNELS)
     top = Category.objects.filter(server=access.server).aggregate(m=Max("position"))["m"]
-    return Category.objects.create(
+    category = Category.objects.create(
         server=access.server, name=name, position=0 if top is None else top + 1
     )
+    events.server_changed(access.server.pk, "category.created", id=str(category.pk))
+    return category
 
 
 def update_category(access: ServerAccess, category: Category, data: dict[str, Any]) -> Category:
@@ -78,13 +82,16 @@ def update_category(access: ServerAccess, category: Category, data: dict[str, An
     for key, value in data.items():
         setattr(category, key, value)
     category.save()
+    events.server_changed(access.server.pk, "category.updated", id=str(category.pk))
     return category
 
 
 def delete_category(access: ServerAccess, category: Category) -> None:
     """Channels inside survive and become uncategorised."""
     access.require(Perm.MANAGE_CHANNELS)
+    category_id = str(category.pk)
     category.delete()
+    events.server_changed(access.server.pk, "category.deleted", id=category_id)
 
 
 # ---------------------------------------------------------------------------- channels
@@ -96,13 +103,15 @@ def create_channel(access: ServerAccess, data: dict[str, Any]) -> Channel:
     top = Channel.objects.filter(server=access.server, category=category).aggregate(
         m=Max("position")
     )["m"]
-    return Channel.objects.create(
+    channel = Channel.objects.create(
         server=access.server,
         category=category,
         name=normalize_channel_name(data.pop("name")),
         position=0 if top is None else top + 1,
         **data,
     )
+    events.server_changed(access.server.pk, "channel.created", id=str(channel.pk))
+    return channel
 
 
 def update_channel(access: ServerAccess, channel: Channel, data: dict[str, Any]) -> Channel:
@@ -114,12 +123,15 @@ def update_channel(access: ServerAccess, channel: Channel, data: dict[str, Any])
     for key, value in data.items():
         setattr(channel, key, value)
     channel.save()
+    events.server_changed(access.server.pk, "channel.updated", id=str(channel.pk))
     return channel
 
 
 def delete_channel(access: ServerAccess, channel: Channel) -> None:
     access.require_channel(channel, Perm.MANAGE_CHANNELS)
+    channel_id = str(channel.pk)
     channel.delete()
+    events.server_changed(access.server.pk, "channel.deleted", id=channel_id)
 
 
 @transaction.atomic
@@ -142,6 +154,7 @@ def reorder_channels(access: ServerAccess, items: list[dict[str, Any]]) -> None:
         channel.category_id = category_id
         channel.position = item["position"]
     Channel.objects.bulk_update(list(channels.values()), ["category", "position"])
+    events.server_changed(access.server.pk, "channel.reordered")
 
 
 # ---------------------------------------------------------------------------- overwrites
@@ -186,6 +199,7 @@ def set_overwrite(
     overwrite, _ = PermissionOverwrite.objects.update_or_create(
         channel=channel, **target, defaults={"allow": allow, "deny": deny}
     )
+    events.server_changed(access.server.pk, "channel.updated", id=str(channel.pk))
     return overwrite
 
 
@@ -195,3 +209,48 @@ def delete_overwrite(access: ServerAccess, channel: Channel, overwrite_id: Any) 
     deleted, _ = PermissionOverwrite.objects.filter(pk=overwrite_id, channel=channel).delete()
     if not deleted:
         raise exceptions.NotFound()
+    events.server_changed(access.server.pk, "channel.updated", id=str(channel.pk))
+
+
+# ---------------------------------------------------------------------------- read states
+
+
+def mark_read(user: Any, channel: Channel, message_id: Any) -> ReadState:
+    """Move the read marker forward (never back) and sync the user's other tabs (FR-CH-04)."""
+    state, _ = ReadState.objects.get_or_create(user=user, channel=channel)
+    if state.last_read_message_id is None or message_id > state.last_read_message_id:
+        state.last_read_message_id = message_id
+        state.mention_count = 0
+        state.save(update_fields=["last_read_message_id", "mention_count", "updated_at"])
+    events.publish(
+        events.user_group(user.pk),
+        "read_state.updated",
+        {
+            "channel_id": str(channel.pk),
+            "server_id": str(channel.server_id),
+            "last_read_message_id": str(state.last_read_message_id),
+            "mention_count": state.mention_count,
+        },
+    )
+    return state
+
+
+def read_states(user: Any) -> list[dict[str, Any]]:
+    """Unread data for every channel the user can see, across all their servers."""
+    visible = {cid for channels in compute_subscriptions(user).values() for cid in channels}
+    states = {
+        str(s.channel_id): s for s in ReadState.objects.filter(user=user, channel_id__in=visible)
+    }
+    rows = Channel.objects.filter(pk__in=visible).values("id", "server_id", "last_message_id")
+    return [
+        {
+            "channel_id": str(row["id"]),
+            "server_id": str(row["server_id"]),
+            "last_message_id": row["last_message_id"],
+            "last_read_message_id": getattr(
+                states.get(str(row["id"])), "last_read_message_id", None
+            ),
+            "mention_count": getattr(states.get(str(row["id"])), "mention_count", 0),
+        }
+        for row in rows
+    ]

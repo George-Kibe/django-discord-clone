@@ -1,7 +1,8 @@
+from typing import Any
 from uuid import UUID
 
 from drf_spectacular.utils import extend_schema
-from rest_framework import status
+from rest_framework import exceptions, status
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -13,6 +14,7 @@ from apps.servers.access import ServerAccess, get_access
 from . import services
 from .models import Category, Channel, PermissionOverwrite
 from .serializers import (
+    AckSerializer,
     CategorySerializer,
     ChannelReorderSerializer,
     ChannelSerializer,
@@ -20,6 +22,7 @@ from .serializers import (
     ChannelWriteSerializer,
     OverwriteSerializer,
     OverwriteWriteSerializer,
+    ReadStateSerializer,
 )
 
 TAGS = ["channels"]
@@ -170,3 +173,44 @@ class OverwriteDetailView(ChannelScopedView):
         channel, access = self.channel_access(request, channel_id)
         services.delete_overwrite(access, channel, overwrite_id)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ---------------------------------------------------------------------------- read states
+
+
+class ChannelAckView(ChannelScopedView):
+    @extend_schema(
+        request=AckSerializer,
+        responses=ReadStateSerializer,
+        tags=TAGS,
+        summary="Mark the channel read up to a message",
+    )
+    def post(self, request: Request, channel_id: UUID) -> Response:
+        channel, _ = self.channel_access(request, channel_id)
+        serializer = AckSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        message_id = serializer.validated_data["message_id"]
+        if channel.last_message_id is None:
+            raise exceptions.ValidationError({"message_id": ["The channel has no messages."]})
+        # UUIDv7 ids sort by time: never mark past the newest message.
+        state = services.mark_read(
+            current_user(request), channel, min(message_id, channel.last_message_id)
+        )
+        return Response(
+            ReadStateSerializer(
+                {
+                    "channel_id": channel.pk,
+                    "server_id": channel.server_id,
+                    "last_message_id": channel.last_message_id,
+                    "last_read_message_id": state.last_read_message_id,
+                    "mention_count": state.mention_count,
+                }
+            ).data
+        )
+
+
+class ReadStateListView(APIView):
+    @extend_schema(responses=ReadStateSerializer(many=True), tags=TAGS)
+    def get(self, request: Request) -> Response:
+        rows: Any = services.read_states(current_user(request))
+        return Response(ReadStateSerializer(rows, many=True).data)

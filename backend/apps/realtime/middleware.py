@@ -7,7 +7,7 @@ from channels.middleware import BaseMiddleware
 from django.contrib.auth.models import AnonymousUser
 from django.http.cookie import parse_cookie
 
-from apps.accounts.authentication import user_from_access_token
+from apps.accounts.authentication import user_and_expiry_from_access_token
 from apps.accounts.cookies import ACCESS_COOKIE
 
 
@@ -19,8 +19,9 @@ def _cookies(scope: dict[str, Any]) -> dict[str, str]:
 
 
 @database_sync_to_async
-def _resolve_user(raw_token: str) -> Any:
-    return user_from_access_token(raw_token) or AnonymousUser()
+def _resolve(raw_token: str) -> tuple[Any, int | None]:
+    user, expires_at = user_and_expiry_from_access_token(raw_token)
+    return (user or AnonymousUser()), expires_at
 
 
 class JWTCookieAuthMiddleware(BaseMiddleware):
@@ -28,5 +29,8 @@ class JWTCookieAuthMiddleware(BaseMiddleware):
         scope = dict(scope)
         raw_token = _cookies(scope).get(ACCESS_COOKIE)
         # No cookie: skip the database entirely (e.g. the public /ws/ping/ check).
-        scope["user"] = await _resolve_user(raw_token) if raw_token else AnonymousUser()
+        if raw_token:
+            scope["user"], scope["access_expires_at"] = await _resolve(raw_token)
+        else:
+            scope["user"], scope["access_expires_at"] = AnonymousUser(), None
         return await super().__call__(scope, receive, send)

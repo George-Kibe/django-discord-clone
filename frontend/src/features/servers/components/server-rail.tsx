@@ -5,6 +5,8 @@ import { useParams, usePathname } from "next/navigation";
 
 import { BrandMark } from "@/components/brand";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { MentionBadge } from "@/components/mention-badge";
+import { useUnread } from "@/features/realtime/read-states";
 import { cn } from "@/lib/utils";
 
 import { useServers } from "../api";
@@ -15,11 +17,15 @@ function RailItem({
   href,
   label,
   active,
+  unread = false,
+  mentions = 0,
   children,
 }: {
   href: string;
   label: string;
   active: boolean;
+  unread?: boolean;
+  mentions?: number;
   children: React.ReactNode;
 }) {
   return (
@@ -27,14 +33,15 @@ function RailItem({
       <TooltipTrigger asChild>
         <Link
           href={href}
-          aria-label={label}
+          aria-label={unread && !active ? `${label} (unread)` : label}
           aria-current={active ? "page" : undefined}
+          data-unread={unread && !active}
           className="group relative flex items-center focus-visible:outline-none"
         >
           <span
             className={cn(
               "absolute -left-3 w-1 rounded-r-full bg-foreground transition-all",
-              active ? "h-10" : "h-0 group-hover:h-5",
+              active ? "h-10" : unread ? "h-2 group-hover:h-5" : "h-0 group-hover:h-5",
             )}
             aria-hidden
           />
@@ -46,6 +53,9 @@ function RailItem({
           >
             {children}
           </span>
+          {mentions > 0 ? (
+            <MentionBadge count={mentions} className="absolute -right-1 -bottom-1 ml-0" />
+          ) : null}
         </Link>
       </TooltipTrigger>
       <TooltipContent side="right">{label}</TooltipContent>
@@ -55,6 +65,7 @@ function RailItem({
 
 export function ServerRail() {
   const { data: servers } = useServers();
+  const { servers: unread, mentions } = useUnread();
   const params = useParams<{ serverId?: string }>();
   const pathname = usePathname();
   const home = pathname.startsWith("/channels/me") || pathname.startsWith("/settings");
@@ -75,6 +86,8 @@ export function ServerRail() {
               href={`/channels/${server.id}`}
               label={server.name}
               active={params.serverId === server.id || pathname.startsWith(`/servers/${server.id}`)}
+              unread={unread.has(server.id)}
+              mentions={mentions.get(server.id) ?? 0}
             >
               <ServerIcon server={server} className="rounded-none" />
             </RailItem>

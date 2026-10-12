@@ -217,41 +217,48 @@ Every frame is a JSON object:
 | `data` | Payload. Resource payloads use **the same serializers as REST** |
 | `seq` | Per-connection increasing sequence number, used for debugging and gap detection |
 
+### Subscriptions
+
+Subscriptions are automatic (ADR-024). A connection receives events for the user (`user.{id}`), every server they belong to (`server.{id}`) and every channel they can view (`channel.{id}`). The server keeps these in sync when memberships, roles, overwrites or channels change. Clients never subscribe explicitly.
+
 ### Client → server requests
 
 | type | data | Notes |
 |---|---|---|
-| `subscribe` | `{server_id?, channel_id?, dm_id?}` | Replaces the current view subscription. Permission-checked |
-| `unsubscribe` | `{channel_id? …}` | |
-| `typing.start` | `{channel_id \| dm_id}` | Throttled to 1 per 3 s on the client, and rate-limited on the server |
-| `presence.heartbeat` | `{}` | Every 30 s |
-| `presence.set` | `{status}` | `online`/`idle`/`dnd`/`invisible` |
-| `reauth` | `{}` | Re-reads the refreshed access cookie. Sent after a REST refresh |
+| `presence.heartbeat` | `{}` | Every `heartbeat_interval` ms (30 s). The response is `{}` |
+| `presence.set` | `{status}` | `online` / `idle` / `dnd` / `invisible`. Saved to the profile. The response echoes the status |
+| `typing.start` | `{channel_id}` | Needs Send Messages (otherwise an `error` frame with `{code: "forbidden"}`). The server drops repeats within 2 s; clients send at most one every 5 s while typing |
+
+A client may send up to 60 frames per 10 s. More closes the connection with `4429`. Unknown or malformed frames close it with `4400`.
 
 > Messages are **not** sent over the WebSocket. They are sent with `POST /messages` (ADR-007).
 
 ### Server → client events
 
+Structural events carry ids only. Clients refetch the resource over REST.
+
 | type | Group | data |
 |---|---|---|
-| `ready` | — | `{user, session_id, heartbeat_interval}`, sent right after connect |
-| `message.created` | channel / dm | Message (with `nonce` for the author's reconciliation) |
-| `message.updated` | channel / dm | Message |
-| `message.deleted` | channel / dm | `{id, channel_id \| dm_id}` |
-| `reaction.added` / `reaction.removed` | channel / dm | `{message_id, emoji, user_id, count}` |
-| `typing.started` | channel / dm | `{user_id, channel_id \| dm_id, expires_in: 8}` |
-| `poll.updated` | channel / dm | `{poll_id, options: [{id, votes}], total, closed_at}` |
-| `channel.created` / `channel.updated` / `channel.deleted` | server | Channel |
-| `category.*` | server | Category |
-| `server.updated` / `server.deleted` | server | Server |
-| `member.joined` / `member.updated` / `member.left` | server | Member |
-| `role.created` / `role.updated` / `role.deleted` | server | Role |
-| `presence.updated` | server | `{user_id, status}` |
-| `notification.created` | user | Notification |
-| `read_state.updated` | user | `{channel_id \| dm_id, last_read_message_id, mention_count}` (syncs across tabs) |
-| `dm.created` / `dm.updated` | user | DMConversation |
-| `server.joined` / `server.removed` | user | Server (sent when you are added, kicked or banned) |
-| `export.ready` / `export.failed` | user | `{export_id}` |
+| `ready` | — | `{user, session_id, heartbeat_interval, server_ids}`, sent right after connect |
+| `message.created` | channel | Message + `server_id` (with `nonce` for the author's reconciliation) |
+| `message.updated` | channel | Message + `server_id` |
+| `message.deleted` | channel | `{id, channel_id, server_id}` |
+| `typing.started` | channel | `{channel_id, user_id, username, display_name, expires_in: 8}` |
+| `channel.created` / `channel.updated` / `channel.deleted` | server | `{server_id, id}` (`channel.updated` also covers overwrite changes) |
+| `channel.reordered` | server | `{server_id}` |
+| `category.created` / `category.updated` / `category.deleted` | server | `{server_id, id}` |
+| `role.created` / `role.updated` / `role.deleted` | server | `{server_id, id}` |
+| `role.reordered` | server | `{server_id}` |
+| `server.updated` / `server.deleted` | server | `{server_id}` |
+| `member.joined` / `member.updated` / `member.left` | server | `{server_id, user_id}` |
+| `user.updated` | server | `{server_id, user_id}` (name or avatar changed) |
+| `presence.updated` | server | `{user_id, status, version, server_id}`. `status` is `online`/`idle`/`dnd`/`offline` (invisible users appear offline). Ignore events with a lower `version` than the last one seen for that user |
+| `read_state.updated` | user | `{channel_id, server_id, last_read_message_id, mention_count}` (syncs across tabs) |
+| `server.joined` | user | `{server_id}`: you joined or created it; your connection is now subscribed |
+| `server.access_changed` | user | `{server_id}`: your permissions or visible channels there changed |
+| `server.removed` | user | `{server_id}`: you left, were removed, or the server was deleted |
+
+Planned for later phases: `reaction.*`, `poll.updated`, `notification.created`, `dm.*`, `export.*`.
 
 ### Close codes
 
@@ -260,7 +267,7 @@ Every frame is a JSON object:
 | 1000 | Normal close | — |
 | 1001 / 1006 | Server restart / network drop | Reconnect with backoff (1 s → 30 s max, with jitter), then backfill |
 | 4400 | Malformed frame | Fix the client, don't retry the same frame |
-| 4401 | Not authenticated / token expired | `POST /auth/refresh`, then reconnect. If that fails, go to login |
+| 4401 | Not authenticated, token expired, or session revoked (password change/reset, logout) | If the connection had reached `ready`, reconnect once with the current cookies. If refused before `ready`, `POST /auth/refresh` and reconnect. If the refresh fails, go to login |
 | 4403 | Origin rejected / account disabled | Go to login |
 | 4429 | Rate limited | Reconnect after the delay in the close reason |
 
@@ -269,8 +276,7 @@ Every frame is a JSON object:
 | Group | Members |
 |---|---|
 | `user.{user_id}` | Every connection of that user |
-| `server.{server_id}` | Connections currently viewing that server |
-| `channel.{channel_id}` | Connections viewing that channel (permission-checked on subscribe) |
-| `dm.{dm_id}` | Connections viewing that DM |
+| `server.{server_id}` | Connections of every member of that server |
+| `channel.{channel_id}` | Connections of every member who can view that channel |
 
-When permissions change (role edit, overwrite, kick), the server sends `server.removed` or `channel.deleted` to the affected users and removes their connections from the groups.
+When permissions change (role edit, overwrite, removal), the consumers recompute their channel groups and send `server.access_changed` or `server.removed` to the affected users (ADR-024).

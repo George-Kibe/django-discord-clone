@@ -25,7 +25,7 @@ Lightweight ADRs. Each records a decision, its context and its consequences. ADR
 | 004 | Decoupled DRF API + Next.js App Router frontend | Accepted |
 | 005 | Single origin behind Caddy | Accepted |
 | 006 | JWT in httpOnly cookies (SimpleJWT) | Accepted (refined by ADR-022) |
-| 007 | Django Channels: REST for writes, WebSocket for push | Accepted |
+| 007 | Django Channels: REST for writes, WebSocket for push | Accepted (refined by ADR-024) |
 | 008 | Celery + Redis for background work | Accepted (amended by ADR-021) |
 | 009 | PostgreSQL 18 without PostGIS | Accepted |
 | 010 | Cloudinary with signed direct uploads | Accepted |
@@ -42,6 +42,7 @@ Lightweight ADRs. Each records a decision, its context and its consequences. ADR
 | 021 | Celery beat with a static schedule (no django-celery-beat) | Accepted |
 | 022 | Signed-in app fetches user data client-side; `session` hint cookie | Accepted |
 | 023 | Backups: age public-key encryption + rclone to any S3 | Accepted |
+| 024 | Gateway: automatic subscriptions, close-on-expiry, patch hot data | Accepted |
 
 ---
 
@@ -155,7 +156,7 @@ We need auth that works for REST, Next.js server-side rendering and WebSockets, 
 - Needs a CSRF bootstrap endpoint and careful cookie handling in tests.
 
 ## ADR-007: Django Channels: REST for writes, WebSocket for push
-- **Status:** Accepted
+- **Status:** Accepted (refined by ADR-024: automatic subscriptions, no `reauth`)
 - **Date:** 2026-10-11
 
 ### Context
@@ -382,3 +383,21 @@ NFR-REL-03/04 need nightly off-site backups and tested restores. The storage pro
 - The provider can be swapped by changing environment variables. A compromised server can't decrypt old backups.
 - Losing the private key means losing the backups, so it must be stored redundantly.
 
+## ADR-024: Gateway: automatic subscriptions, close-on-expiry, patch hot data
+- **Status:** Accepted (refines ADR-007)
+- **Date:** 2026-10-12
+
+### Context
+ADR-007 planned explicit `subscribe` frames for the viewed server/channel and a `reauth` frame after a REST token refresh. In practice, unread badges, presence and typing are needed for every server and channel the user can see, not only the one on screen. A WebSocket can't see cookies set after its handshake, so `reauth` couldn't read a refreshed access cookie.
+
+### Decision
+- **Automatic subscriptions.** On connect the consumer joins `user.{id}`, `server.{id}` for every membership and `channel.{id}` for every channel the user can view. Services send a `realtime.control` `resync` to the server (structural or permission changes) or to the user (joined, left, role change). The consumer recomputes that server's visible channels and emits `server.joined`, `server.access_changed` or `server.removed`. Private channel events never reach members who can't see them.
+- **Close on expiry, no `reauth`.** The server closes with `4401` when the access token expires, and also on password change/reset and logout. If the closed connection was working, the client first reconnects with its current cookies, because a request in this tab may have just replaced them. If a connection is refused before `ready`, the client refreshes over REST and reconnects. If the refresh fails, the client goes to the login page.
+- **Patch hot data, refetch structure.** Messages, typing, presence and read states are applied straight to the client caches. Channel, category, role, member and server events invalidate the affected queries. After a reconnect the client backfills messages with `?after=` and refetches everything else.
+- **Presence.** Redis holds a per-connection key with a 70 s TTL that heartbeats refresh, a set of online users, the chosen status and a per-user version. Disconnects and the 30 s Celery sweep prune connections with an atomic Lua script. Every presence event carries the version, and clients ignore older versions, so events that arrive out of order never show a connected user as offline. Consumer cleanup runs in a `finally` block, so it also runs when a send to a vanished client raises.
+- **Channel layer timeouts.** redis-py 8 defaults `socket_timeout` to 5 s, the same as channels-redis's blocking `BZPOPMIN`, which crashed idle consumers. The layer's connections use `socket_timeout=30`.
+
+### Consequences
+- Every connection is in roughly (servers + visible channels) groups. That is fine at this scale (100 connections: p95 fan-out 46 ms locally). A very large deployment would move to per-view subscriptions.
+- Any permission change costs one subscription recompute per connected member of that server.
+- Revoked sessions on other devices can reconnect until their access token expires (≤ 15 min), the same as REST with stateless JWTs.

@@ -109,8 +109,17 @@ When sending through Gmail, a `DEFAULT_FROM_EMAIL` at `localhost` is replaced by
 
 ### Frontend
 
-- **Vitest** + Testing Library for components and hooks. **MSW** mocks the API, and a mock WebSocket server tests the realtime client.
-- **Playwright** E2E runs against the full Compose stack. It reads verification emails through the Mailpit API. Specs live in `frontend/e2e/`. The suite includes automated accessibility checks (axe, WCAG 2.2 AA) for every page. The avatar test uploads to the real Cloudinary account in `.env`, cleans up after itself, and skips itself when Cloudinary isn't configured (as in CI).
+- **Vitest** + Testing Library for components and hooks. **MSW** mocks the API. The realtime client is tested against a fake WebSocket with fake timers.
+- **Playwright** E2E runs against the full Compose stack. It reads verification emails through the Mailpit API. Specs live in `frontend/e2e/`. The suite includes automated accessibility checks (axe, WCAG 2.2 AA) for every page. The avatar test uploads to the real Cloudinary account in `.env`, cleans up after itself, and skips itself when Cloudinary isn't configured (as in CI). `server-restart.spec.ts` restarts the `api` container mid-session. It runs in its own Playwright project after all other tests, and skips itself where `docker compose` isn't available.
+- Run E2E against both entry points: `make e2e` (Caddy, http://localhost) and `E2E_BASE_URL=http://localhost:3000 make e2e` (Next.js directly).
+
+### Real-time load test
+
+```bash
+docker compose exec api python manage.py realtime_loadtest --connections 100 --messages 20
+```
+
+This opens N gateway connections as throwaway users in one server, posts messages and reports delivery latency. It fails if any delivery is lost or the p95 exceeds 500 ms. Everything it creates is deleted afterwards. It refuses to run with `DEBUG` off.
 
 ## Database & migrations
 
@@ -175,4 +184,5 @@ When sending through Gmail, a `DEFAULT_FROM_EMAIL` at `localhost` is replaced by
 | Edited `.env` but nothing changed | `docker compose restart` does **not** re-read `.env`. Run `docker compose up -d` so the containers are recreated |
 | No emails in Mailpit | Check `docker compose logs worker`. Emails are sent by the Celery worker after the database commit. Real addresses go to your SMTP/Gmail account when one is configured, not to Mailpit |
 | Gmail emails don't arrive | Check `docker compose logs worker` for SMTP errors. Gmail needs an app password (2-Step Verification on). Look in spam: local links point at `localhost` |
+| "Reconnecting…" banner won't go away | Check `docker compose logs api` for WebSocket errors and that `redis` is healthy. Behind another proxy, make sure it forwards WebSocket upgrades for `/ws/` |
 | Stuck on a loading spinner after login | The `session` cookie exists but the API rejects the tokens. Clear the site's cookies or log out |

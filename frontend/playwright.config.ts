@@ -14,5 +14,18 @@ export default defineConfig({
     baseURL: process.env.E2E_BASE_URL ?? "http://localhost",
     trace: "on-first-retry",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
+      testIgnore: /server-restart\.spec\.ts/,
+    },
+    {
+      // Restarts the API container: runs alone, after everything else.
+      name: "restart",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /server-restart\.spec\.ts/,
+      dependencies: ["chromium"],
+    },
+  ],
 });

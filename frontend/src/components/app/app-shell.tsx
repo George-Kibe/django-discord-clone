@@ -5,11 +5,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { RealtimeProvider } from "@/features/realtime/provider";
 import { ServerRail } from "@/features/servers/components/server-rail";
 import { ApiError } from "@/lib/api/errors";
 import { useMe } from "@/lib/auth/session";
 import { hasSessionHint } from "@/lib/cookies";
 
+import { ConnectionBanner } from "./connection-banner";
 import { UserPanel } from "./user-panel";
 import { VerifyBanner } from "./verify-banner";
 
@@ -42,22 +44,25 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <TooltipProvider delayDuration={200}>
-      <div className="flex h-svh flex-col md:flex-row">
-        <nav
-          aria-label="Servers"
-          className="flex shrink-0 items-center gap-2 overflow-x-auto bg-sidebar px-3 py-2 md:w-[72px] md:flex-col md:overflow-x-visible md:overflow-y-auto md:py-3"
-        >
-          <ServerRail />
-          <div className="ml-auto md:hidden">
-            <UserPanel me={me} />
+    <RealtimeProvider myId={me.id}>
+      <TooltipProvider delayDuration={200}>
+        <div className="flex h-svh flex-col md:flex-row">
+          <nav
+            aria-label="Servers"
+            className="flex shrink-0 items-center gap-2 overflow-x-auto bg-sidebar px-3 py-2 md:w-[72px] md:flex-col md:overflow-x-visible md:overflow-y-auto md:py-3"
+          >
+            <ServerRail />
+            <div className="ml-auto md:hidden">
+              <UserPanel me={me} />
+            </div>
+          </nav>
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <ConnectionBanner />
+            <VerifyBanner me={me} />
+            <div className="flex min-h-0 flex-1">{children}</div>
           </div>
-        </nav>
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <VerifyBanner me={me} />
-          <div className="flex min-h-0 flex-1">{children}</div>
         </div>
-      </div>
-    </TooltipProvider>
+      </TooltipProvider>
+    </RealtimeProvider>
   );
 }

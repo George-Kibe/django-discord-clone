@@ -101,11 +101,10 @@ export function useRoles(serverId: string) {
 export function useMembers(serverId: string) {
   return useQuery({
     queryKey: keys.members(serverId),
-    // Until Phase 4 pushes member.joined/left events, refresh periodically and on focus.
-    refetchInterval: 30_000,
-    refetchOnWindowFocus: true,
+    // Kept current by gateway events: presence is patched in, membership changes refetch.
+    staleTime: Infinity,
     queryFn: async () => {
-      // Small servers: fetch every page (100 per page). Big-server paging arrives with real-time.
+      // Small servers (NFR-SCALE-01): fetch every page, 100 per page.
       const all: Member[] = [];
       for (let page = 1; page < 50; page++) {
         const data = must(
@@ -156,7 +155,7 @@ export function usePermissionInfo() {
 
 // ---------------------------------------------------------------------------- mutations
 
-/** Invalidate everything about one server (cheap at this scale; real-time patches come in Phase 4). */
+/** Invalidate everything about one server (cheap at this scale). */
 export function useInvalidateServer() {
   const queryClient = useQueryClient();
   return (serverId: string) => queryClient.invalidateQueries({ queryKey: keys.server(serverId) });

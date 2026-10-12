@@ -10,6 +10,8 @@ from django.utils import timezone
 from rest_framework import exceptions
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from apps.realtime import notify
+
 from . import audit, emails, tokens
 from .models import AuthAuditEvent, User
 
@@ -120,6 +122,7 @@ def confirm_password_reset(*, uid: str, token: str, password: str, request: Http
     user.set_password(password)
     user.save(update_fields=["password"])
     tokens.revoke_all_refresh_tokens(user)  # sign out everywhere
+    notify.revoke_sockets(user.pk)
     audit.record(AuthAuditEvent.Event.PASSWORD_RESET, request, user=user)
     emails.send_password_changed_notice(user)
     return user
@@ -137,6 +140,7 @@ def change_password(
     user.set_password(new_password)
     user.save(update_fields=["password"])
     tokens.revoke_all_refresh_tokens(user)
+    notify.revoke_sockets(user.pk)
     audit.record(AuthAuditEvent.Event.PASSWORD_CHANGED, request, user=user)
     emails.send_password_changed_notice(user)
     return tokens.issue_tokens(user)  # keep this session signed in

@@ -12,6 +12,7 @@ from apps.accounts.models import User
 from apps.core.permissions import DEFAULT_EVERYONE, DEFAULT_MODERATOR, Perm
 from apps.media import services as media
 from apps.media.tasks import delete_asset
+from apps.realtime import events
 
 from .access import ServerAccess
 from .models import Invite, Member, Role, Server
@@ -67,6 +68,7 @@ def create_server(*, owner: User, name: str, description: str = "", **extra: Any
     Channel.objects.create(server=server, category=category, name="general", position=0)
     if icon_public_id:
         _set_icon(server, owner, icon_public_id)
+    events.membership_changed(owner.pk, server.pk)  # the owner's open tabs subscribe right away
     return server
 
 
@@ -89,13 +91,17 @@ def update_server(access: ServerAccess, data: dict[str, Any]) -> Server:
     for key, value in data.items():
         setattr(server, key, value)
     server.save()
+    events.server_changed(server.pk, "server.updated")
     return server
 
 
 def delete_server(access: ServerAccess) -> None:
     access.require_owner()
     icon = access.server.icon_public_id
+    server_id = access.server.pk
     access.server.delete()
+    # Members' consumers re-check access, find no membership and emit server.removed.
+    events.server_changed(server_id, "server.deleted")
     if icon:
         delete_asset.delay(icon)
 
@@ -110,6 +116,7 @@ def transfer_ownership(access: ServerAccess, new_owner_id: Any) -> Server:
         raise exceptions.ValidationError({"user_id": ["The new owner must be a member."]})
     access.server.owner_id = new_owner_id
     access.server.save(update_fields=["owner", "updated_at"])
+    events.server_changed(access.server.pk, "server.updated")
     return access.server
 
 
@@ -122,6 +129,12 @@ def add_member(server: Server, user: User) -> Member:
     except IntegrityError:
         raise Conflict("You're already a member of this server.", code="already_member") from None
     Server.objects.filter(pk=server.pk).update(member_count=F("member_count") + 1)
+    events.publish(
+        events.server_group(server.pk),
+        "member.joined",
+        {"server_id": str(server.pk), "user_id": str(user.pk)},
+    )
+    events.membership_changed(user.pk, server.pk)  # their open tabs subscribe right away
     return member
 
 
@@ -141,6 +154,12 @@ def leave_server(access: ServerAccess) -> None:
         )
     access.member.delete()
     Server.objects.filter(pk=access.server.pk).update(member_count=F("member_count") - 1)
+    events.publish(
+        events.server_group(access.server.pk),
+        "member.left",
+        {"server_id": str(access.server.pk), "user_id": str(access.user.pk)},
+    )
+    events.membership_changed(access.user.pk, access.server.pk)
 
 
 # ---------------------------------------------------------------------------- roles
@@ -153,9 +172,11 @@ def create_role(access: ServerAccess, data: dict[str, Any]) -> Role:
     permissions = int(data.get("permissions", 0))
     access.assert_grantable(permissions)
     Role.objects.filter(server=access.server, is_default=False).update(position=F("position") + 1)
-    return Role.objects.create(
+    role = Role.objects.create(
         server=access.server, position=1, **(data | {"permissions": permissions})
     )
+    events.server_changed(access.server.pk, "role.created", id=str(role.pk))
+    return role
 
 
 def _manageable_role(access: ServerAccess, role: Role) -> None:
@@ -179,6 +200,7 @@ def update_role(access: ServerAccess, role: Role, data: dict[str, Any]) -> Role:
     for key, value in data.items():
         setattr(role, key, value)
     role.save()
+    events.server_changed(access.server.pk, "role.updated", id=str(role.pk))
     return role
 
 
@@ -187,7 +209,9 @@ def delete_role(access: ServerAccess, role: Role) -> None:
     if role.is_default:
         raise exceptions.ValidationError({"non_field_errors": ["@everyone can't be deleted."]})
     _manageable_role(access, role)
+    role_id = str(role.pk)
     role.delete()
+    events.server_changed(access.server.pk, "role.deleted", id=role_id)
 
 
 @transaction.atomic
@@ -219,6 +243,7 @@ def reorder_roles(access: ServerAccess, ordered_ids: list[Any]) -> list[Role]:
         role.position = new_position
         changed.append(role)
     Role.objects.bulk_update(changed, ["position"])
+    events.server_changed(access.server.pk, "role.reordered")
     return sorted(roles.values(), key=lambda r: -r.position)
 
 
@@ -259,6 +284,12 @@ def update_member(access: ServerAccess, member: Member, data: dict[str, Any]) ->
         for role_id in wanted ^ current:  # every role being added or removed
             _manageable_role(access, server_roles[role_id])
         member.roles.set([server_roles[r] for r in wanted])
+        events.membership_changed(member.user_id, access.server.pk)  # their permissions changed
+    events.publish(
+        events.server_group(access.server.pk),
+        "member.updated",
+        {"server_id": str(access.server.pk), "user_id": str(member.user_id)},
+    )
     return member
 
 

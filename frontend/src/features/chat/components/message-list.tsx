@@ -32,6 +32,7 @@ export function MessageList({
   myId,
   canManageMessages,
   onRetry,
+  onAtBottomChange,
 }: {
   messages: ChatMessage[];
   channelName: string;
@@ -41,6 +42,7 @@ export function MessageList({
   myId: string;
   canManageMessages: boolean;
   onRetry: (message: ChatMessage) => void;
+  onAtBottomChange?: (atBottom: boolean) => void;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const atBottom = useRef(true);
@@ -94,12 +96,14 @@ export function MessageList({
     const element = parentRef.current;
     if (!element) return;
     const onScroll = () => {
-      atBottom.current = element.scrollHeight - element.scrollTop - element.clientHeight < 80;
+      const bottom = element.scrollHeight - element.scrollTop - element.clientHeight < 80;
+      if (bottom !== atBottom.current) onAtBottomChange?.(bottom);
+      atBottom.current = bottom;
       if (element.scrollTop < 200 && hasOlder && !loadingOlder) onLoadOlder();
     };
     element.addEventListener("scroll", onScroll, { passive: true });
     return () => element.removeEventListener("scroll", onScroll);
-  }, [hasOlder, loadingOlder, onLoadOlder]);
+  }, [hasOlder, loadingOlder, onLoadOlder, onAtBottomChange]);
 
   return (
     <div

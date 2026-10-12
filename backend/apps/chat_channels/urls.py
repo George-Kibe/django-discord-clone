@@ -21,6 +21,7 @@ channel_urlpatterns = [
     path(
         "<uuid:channel_id>/overwrites", views.OverwriteListView.as_view(), name="channel-overwrites"
     ),
+    path("<uuid:channel_id>/ack", views.ChannelAckView.as_view(), name="channel-ack"),
     path(
         "<uuid:channel_id>/overwrites/<uuid:overwrite_id>",
         views.OverwriteDetailView.as_view(),

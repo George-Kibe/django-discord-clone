@@ -11,11 +11,13 @@ export function Composer({
   disabled,
   disabledReason,
   onSend,
+  onTyping,
 }: {
   channelName: string;
   disabled: boolean;
   disabledReason?: string;
   onSend: (content: string) => void;
+  onTyping?: () => void;
 }) {
   const [value, setValue] = useState("");
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -37,7 +39,7 @@ export function Composer({
 
   return (
     <form
-      className="px-4 pb-4"
+      className="px-4 pb-1"
       onSubmit={(event) => {
         event.preventDefault();
         submit();
@@ -50,7 +52,10 @@ export function Composer({
         id="composer"
         ref={ref}
         value={value}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={(e) => {
+          setValue(e.target.value);
+          if (e.target.value.trim()) onTyping?.();
+        }}
         onKeyDown={onKeyDown}
         disabled={disabled}
         rows={1}

@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 from channels.testing import WebsocketCommunicator
 
@@ -42,3 +44,15 @@ async def test_foreign_origin_is_rejected(origin):
     # AllowedHostsOriginValidator reads ALLOWED_HOSTS (see config.settings.test) at import time.
     _, connected = await _connect(headers=[(b"origin", origin)])
     assert not connected
+
+
+def test_channel_layer_reads_outlast_the_blocking_pop():
+    """Regression: redis-py's default 5 s socket timeout equals channels-redis's BZPOPMIN block,
+    which crashed idle consumers (no disconnect cleanup, ghost presence)."""
+    from channels_redis.core import RedisChannelLayer
+
+    from config.settings import base
+
+    config: Any = base.CHANNEL_LAYERS["default"]["CONFIG"]
+    (host,) = config["hosts"]
+    assert host["socket_timeout"] > RedisChannelLayer.brpop_timeout

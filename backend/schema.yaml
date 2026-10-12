@@ -352,6 +352,35 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/channels/{channel_id}/ack:
+    post:
+      operationId: channels_ack_create
+      summary: Mark the channel read up to a message
+      parameters:
+      - in: path
+        name: channel_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - channels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AckRequest'
+        required: true
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadState'
+          description: ''
   /api/v1/channels/{channel_id}/messages:
     get:
       operationId: channels_messages_retrieve
@@ -662,6 +691,23 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/PermissionInfo'
+          description: ''
+  /api/v1/read-states:
+    get:
+      operationId: read_states_list
+      tags:
+      - channels
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReadState'
           description: ''
   /api/v1/servers:
     get:
@@ -1352,6 +1398,14 @@ paths:
           description: ''
 components:
   schemas:
+    AckRequest:
+      type: object
+      properties:
+        message_id:
+          type: string
+          format: uuid
+      required:
+      - message_id
     AvatarRequest:
       type: object
       properties:
@@ -1737,10 +1791,16 @@ components:
           type: string
           format: date-time
           readOnly: true
+        presence:
+          allOf:
+          - $ref: '#/components/schemas/PresenceEnum'
+          description: online, idle, dnd or offline (invisible users appear offline).
+          readOnly: true
       required:
       - is_owner
       - joined_at
       - nickname
+      - presence
       - role_ids
       - user
     Message:
@@ -2098,6 +2158,13 @@ components:
       - description
       - name
       - value
+    PresenceEnum:
+      enum:
+      - online
+      - idle
+      - dnd
+      - offline
+      type: string
     PurposeEnum:
       enum:
       - avatar
@@ -2106,6 +2173,31 @@ components:
       description: |-
         * `avatar` - avatar
         * `server_icon` - server_icon
+    ReadState:
+      type: object
+      properties:
+        channel_id:
+          type: string
+          format: uuid
+        server_id:
+          type: string
+          format: uuid
+        last_message_id:
+          type: string
+          format: uuid
+          nullable: true
+        last_read_message_id:
+          type: string
+          format: uuid
+          nullable: true
+        mention_count:
+          type: integer
+      required:
+      - channel_id
+      - last_message_id
+      - last_read_message_id
+      - mention_count
+      - server_id
     RegisterRequest:
       type: object
       properties:
