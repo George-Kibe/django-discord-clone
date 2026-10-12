@@ -12,6 +12,14 @@ const at = (author: string | null, iso: string): ChatMessage => ({
   nonce: null,
   created_at: iso,
   edited_at: null,
+  dm_id: null,
+  pinned_at: null,
+  reply_to: null,
+  attachments: [],
+  reactions: [],
+  mentions: [],
+  mention_roles: [],
+  mention_everyone: false,
 });
 
 describe("isGrouped", () => {

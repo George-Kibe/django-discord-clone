@@ -1,11 +1,11 @@
 "use client";
 
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Hash, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { ChatMessage } from "../api";
-import { MessageItem } from "./message-item";
+import { MessageItem, type MessageContext } from "./message-item";
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000;
 
@@ -29,9 +29,8 @@ export function MessageList({
   hasOlder,
   loadingOlder,
   onLoadOlder,
-  myId,
-  canManageMessages,
-  onRetry,
+  ctx,
+  intro,
   onAtBottomChange,
 }: {
   messages: ChatMessage[];
@@ -39,9 +38,9 @@ export function MessageList({
   hasOlder: boolean;
   loadingOlder: boolean;
   onLoadOlder: () => void;
-  myId: string;
-  canManageMessages: boolean;
-  onRetry: (message: ChatMessage) => void;
+  ctx: MessageContext;
+  /** Shown above the first message ("Welcome to #general!"). */
+  intro: React.ReactNode;
   onAtBottomChange?: (atBottom: boolean) => void;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
@@ -111,7 +110,7 @@ export function MessageList({
       className="min-h-0 flex-1 overflow-y-auto"
       role="log"
       aria-live="polite"
-      aria-label={`Messages in #${channelName}`}
+      aria-label={`Messages in ${channelName}`}
       data-testid="message-list"
     >
       <div className="relative w-full" style={{ height: totalSize + bottomGap }}>
@@ -131,30 +130,14 @@ export function MessageList({
                   ) : null}
                 </div>
               ) : (
-                <div className="px-4 pt-16 pb-4">
-                  <span className="flex size-16 items-center justify-center rounded-full bg-muted">
-                    <Hash className="size-8" aria-hidden />
-                  </span>
-                  <h2 className="mt-3 text-2xl font-bold">Welcome to #{channelName}!</h2>
-                  <p className="text-muted-foreground">
-                    This is the start of the #{channelName} channel.
-                  </p>
-                </div>
+                <div className="px-4 pt-16 pb-4">{intro}</div>
               )
             ) : (
-              (() => {
-                const message = messages[row.index - 1];
-                const mine = message.author?.id === myId;
-                return (
-                  <MessageItem
-                    message={message}
-                    grouped={isGrouped(messages[row.index - 2], message)}
-                    canEdit={mine}
-                    canDelete={mine || canManageMessages}
-                    onRetry={onRetry}
-                  />
-                );
-              })()
+              <MessageItem
+                message={messages[row.index - 1]}
+                grouped={isGrouped(messages[row.index - 2], messages[row.index - 1])}
+                ctx={ctx}
+              />
             )}
           </div>
         ))}

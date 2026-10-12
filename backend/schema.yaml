@@ -384,6 +384,7 @@ paths:
   /api/v1/channels/{channel_id}/messages:
     get:
       operationId: channels_messages_retrieve
+      description: History + send, shared by channels and DMs.
       parameters:
       - in: query
         name: after
@@ -436,7 +437,6 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/MessageWriteRequest'
-        required: true
       security:
       - jwtCookieAuth: []
       - cookieAuth: []
@@ -529,6 +529,363 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/channels/{channel_id}/pins:
+    get:
+      operationId: channels_pins_list
+      parameters:
+      - in: path
+        name: channel_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - messages
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+          description: ''
+  /api/v1/dms:
+    get:
+      operationId: dms_list
+      tags:
+      - dms
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DMConversation'
+          description: ''
+    post:
+      operationId: dms_create
+      description: 'One user: returns the existing 1:1 conversation (200) or creates
+        it (201).'
+      tags:
+      - dms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DMCreateRequest'
+        required: true
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DMConversation'
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DMConversation'
+          description: ''
+  /api/v1/dms/{dm_id}:
+    get:
+      operationId: dms_retrieve
+      parameters:
+      - in: path
+        name: dm_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - dms
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DMConversation'
+          description: ''
+    patch:
+      operationId: dms_partial_update
+      parameters:
+      - in: path
+        name: dm_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - dms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedDMUpdateRequest'
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DMConversation'
+          description: ''
+  /api/v1/dms/{dm_id}/ack:
+    post:
+      operationId: dms_ack_create
+      parameters:
+      - in: path
+        name: dm_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - dms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DMAckRequestRequest'
+        required: true
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DMAck'
+          description: ''
+  /api/v1/dms/{dm_id}/messages:
+    get:
+      operationId: dms_messages_retrieve
+      description: History + send, shared by channels and DMs.
+      parameters:
+      - in: query
+        name: after
+        schema:
+          type: string
+        description: 'Message id: newer messages, oldest first'
+      - in: query
+        name: before
+        schema:
+          type: string
+        description: 'Message id: older messages, newest first'
+      - in: path
+        name: dm_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: query
+        name: limit
+        schema:
+          type: integer
+        description: 1-100, default 50
+      tags:
+      - dms
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessagePage'
+          description: ''
+    post:
+      operationId: dms_messages_create
+      description: History + send, shared by channels and DMs.
+      parameters:
+      - in: path
+        name: dm_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - dms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageWriteRequest'
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+          description: ''
+  /api/v1/dms/{dm_id}/messages/search:
+    get:
+      operationId: dms_messages_search_retrieve
+      parameters:
+      - in: query
+        name: after
+        schema:
+          type: string
+        description: YYYY-MM-DD
+      - in: query
+        name: author
+        schema:
+          type: string
+        description: User id
+      - in: query
+        name: before
+        schema:
+          type: string
+        description: YYYY-MM-DD
+      - in: query
+        name: channel
+        schema:
+          type: string
+        description: Channel id (server search)
+      - in: query
+        name: cursor
+        schema:
+          type: string
+      - in: path
+        name: dm_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: query
+        name: has
+        schema:
+          type: string
+          enum:
+          - attachment
+          - file
+          - image
+      - in: query
+        name: limit
+        schema:
+          type: integer
+        description: 1-50, default 25
+      - in: query
+        name: q
+        schema:
+          type: string
+        description: 'Words or phrases (web-search syntax: "quotes", -not)'
+      tags:
+      - dms
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResultPage'
+          description: ''
+  /api/v1/dms/{dm_id}/participants:
+    post:
+      operationId: dms_participants_create
+      parameters:
+      - in: path
+        name: dm_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - dms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DMAddParticipantsRequest'
+        required: true
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DMConversation'
+          description: ''
+  /api/v1/dms/{dm_id}/participants/{user_id}:
+    delete:
+      operationId: dms_participants_destroy
+      summary: Leave, or remove someone (owner)
+      parameters:
+      - in: path
+        name: dm_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: user_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - dms
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/dms/{dm_id}/pins:
+    get:
+      operationId: dms_pins_list
+      parameters:
+      - in: path
+        name: dm_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - dms
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+          description: ''
   /api/v1/invites/{code}:
     get:
       operationId: invites_retrieve
@@ -656,6 +1013,121 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/messages/{message_id}/pin:
+    put:
+      operationId: messages_pin_update
+      summary: Pin a message
+      parameters:
+      - in: path
+        name: message_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - messages
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+          description: ''
+    delete:
+      operationId: messages_pin_destroy
+      summary: Unpin a message
+      parameters:
+      - in: path
+        name: message_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - messages
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/messages/{message_id}/reactions/{emoji}:
+    get:
+      operationId: messages_reactions_retrieve
+      summary: Who reacted
+      parameters:
+      - in: path
+        name: emoji
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: message_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - messages
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReactionUsers'
+          description: ''
+    put:
+      operationId: messages_reactions_update
+      summary: Add your reaction
+      parameters:
+      - in: path
+        name: emoji
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: message_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - messages
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+    delete:
+      operationId: messages_reactions_destroy
+      summary: Remove your reaction
+      parameters:
+      - in: path
+        name: emoji
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: message_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - messages
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/meta:
     get:
       operationId: meta_retrieve
@@ -673,6 +1145,91 @@ paths:
               schema:
                 $ref: '#/components/schemas/Meta'
           description: ''
+  /api/v1/mute-settings:
+    get:
+      operationId: mute_settings_list
+      tags:
+      - notifications
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MuteSetting'
+          description: ''
+    put:
+      operationId: mute_settings_update
+      tags:
+      - notifications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MuteWriteRequest'
+        required: true
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MuteSetting'
+          description: ''
+  /api/v1/notifications:
+    get:
+      operationId: notifications_retrieve
+      parameters:
+      - in: query
+        name: cursor
+        schema:
+          type: string
+        description: '`next_cursor` from the last page'
+      - in: query
+        name: limit
+        schema:
+          type: integer
+        description: 1-50, default 25
+      - in: query
+        name: unread
+        schema:
+          type: boolean
+      tags:
+      - notifications
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPage'
+          description: ''
+  /api/v1/notifications/read:
+    post:
+      operationId: notifications_read_create
+      tags:
+      - notifications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarkReadRequest'
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/permissions:
     get:
       operationId: permissions_list
@@ -1102,6 +1659,70 @@ paths:
               schema:
                 $ref: '#/components/schemas/Member'
           description: ''
+  /api/v1/servers/{server_id}/messages/search:
+    get:
+      operationId: servers_messages_search_retrieve
+      parameters:
+      - in: query
+        name: after
+        schema:
+          type: string
+        description: YYYY-MM-DD
+      - in: query
+        name: author
+        schema:
+          type: string
+        description: User id
+      - in: query
+        name: before
+        schema:
+          type: string
+        description: YYYY-MM-DD
+      - in: query
+        name: channel
+        schema:
+          type: string
+        description: Channel id (server search)
+      - in: query
+        name: cursor
+        schema:
+          type: string
+      - in: query
+        name: has
+        schema:
+          type: string
+          enum:
+          - attachment
+          - file
+          - image
+      - in: query
+        name: limit
+        schema:
+          type: integer
+        description: 1-50, default 25
+      - in: query
+        name: q
+        schema:
+          type: string
+        description: 'Words or phrases (web-search syntax: "quotes", -not)'
+      - in: path
+        name: server_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - messages
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResultPage'
+          description: ''
   /api/v1/servers/{server_id}/roles:
     get:
       operationId: servers_roles_list
@@ -1375,6 +1996,81 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/users/me/blocks:
+    get:
+      operationId: users_me_blocks_list
+      tags:
+      - users
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserSummary'
+          description: ''
+    post:
+      operationId: users_me_blocks_create
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlockRequestRequest'
+        required: true
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/users/me/blocks/{user_id}:
+    delete:
+      operationId: users_me_blocks_destroy
+      parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - users
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/users/me/contacts:
+    get:
+      operationId: users_me_contacts_list
+      summary: People you share a server with
+      parameters:
+      - in: query
+        name: q
+        schema:
+          type: string
+        description: Username or display name
+      tags:
+      - dms
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserSummary'
+          description: ''
   /api/v1/users/me/email:
     post:
       operationId: users_me_email_create
@@ -1406,6 +2102,67 @@ components:
           format: uuid
       required:
       - message_id
+    Attachment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        filename:
+          type: string
+          readOnly: true
+        content_type:
+          type: string
+          readOnly: true
+        size_bytes:
+          type: integer
+          readOnly: true
+        width:
+          type: integer
+          readOnly: true
+          nullable: true
+        height:
+          type: integer
+          readOnly: true
+          nullable: true
+        is_image:
+          type: boolean
+          readOnly: true
+        url:
+          type: string
+          nullable: true
+          readOnly: true
+        preview_url:
+          type: string
+          nullable: true
+          readOnly: true
+      required:
+      - content_type
+      - filename
+      - height
+      - id
+      - is_image
+      - preview_url
+      - size_bytes
+      - url
+      - width
+    AttachmentRefRequest:
+      type: object
+      properties:
+        public_id:
+          type: string
+          minLength: 1
+          description: From POST /media/sign (purpose=attachment), uploaded.
+          maxLength: 255
+        filename:
+          type: string
+          minLength: 1
+          description: The original file name.
+          maxLength: 255
+      required:
+      - filename
+      - public_id
     AvatarRequest:
       type: object
       properties:
@@ -1415,6 +2172,14 @@ components:
           maxLength: 255
       required:
       - public_id
+    BlockRequestRequest:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+      required:
+      - user_id
     Category:
       type: object
       properties:
@@ -1529,6 +2294,120 @@ components:
           minimum: 0
       required:
       - name
+    DMAck:
+      type: object
+      properties:
+        last_read_message_id:
+          type: string
+          format: uuid
+      required:
+      - last_read_message_id
+    DMAckRequestRequest:
+      type: object
+      properties:
+        message_id:
+          type: string
+          format: uuid
+      required:
+      - message_id
+    DMAddParticipantsRequest:
+      type: object
+      properties:
+        user_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 9
+          minItems: 1
+      required:
+      - user_ids
+    DMConversation:
+      type: object
+      description: 'Context: ``participants`` ({dm_id: [User]}), ``me`` (DMParticipant
+        by dm id).'
+      properties:
+        id:
+          type: string
+          format: uuid
+        is_group:
+          type: boolean
+        name:
+          type: string
+        owner_id:
+          type: string
+          format: uuid
+          nullable: true
+        last_message_id:
+          type: string
+          format: uuid
+          nullable: true
+        recipients:
+          type: array
+          items:
+            $ref: '#/components/schemas/DMRecipient'
+          readOnly: true
+          description: Everyone except you.
+        last_read_message_id:
+          type: string
+          format: uuid
+          nullable: true
+          readOnly: true
+        unread_count:
+          type: integer
+          readOnly: true
+      required:
+      - id
+      - is_group
+      - last_message_id
+      - last_read_message_id
+      - name
+      - owner_id
+      - recipients
+      - unread_count
+    DMCreateRequest:
+      type: object
+      properties:
+        user_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: One user opens (or reuses) a 1:1 DM; more create a group DM.
+          maxItems: 9
+          minItems: 1
+        name:
+          type: string
+          default: ''
+          maxLength: 100
+      required:
+      - user_ids
+    DMRecipient:
+      type: object
+      description: Compact user embedded in messages, members and invites.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+        display_name:
+          type: string
+          readOnly: true
+        avatar_url:
+          type: string
+          nullable: true
+          readOnly: true
+        presence:
+          $ref: '#/components/schemas/PresenceEnum'
+      required:
+      - avatar_url
+      - display_name
+      - id
+      - presence
+      - username
     Detail:
       type: object
       properties:
@@ -1704,6 +2583,18 @@ components:
       required:
       - email
       - password
+    MarkReadRequest:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 200
+        all:
+          type: boolean
+          default: false
     MaxAgeEnum:
       enum:
       - 0
@@ -1803,8 +2694,23 @@ components:
       - presence
       - role_ids
       - user
+    MentionRole:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        color:
+          type: integer
+      required:
+      - color
+      - id
+      - name
     Message:
       type: object
+      description: 'Context: ``reactions`` ({message_id: [summary]}) from ``services.reaction_summaries``.'
       properties:
         id:
           type: string
@@ -1814,6 +2720,12 @@ components:
           type: string
           format: uuid
           readOnly: true
+          nullable: true
+        dm_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
         author:
           allOf:
           - $ref: '#/components/schemas/UserSummary'
@@ -1839,14 +2751,55 @@ components:
           format: date-time
           readOnly: true
           nullable: true
+        pinned_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reply_to:
+          allOf:
+          - $ref: '#/components/schemas/ReplyPreview'
+          nullable: true
+          readOnly: true
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attachment'
+          readOnly: true
+        reactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReactionSummary'
+          readOnly: true
+        mentions:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserSummary'
+          readOnly: true
+        mention_roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/MentionRole'
+          readOnly: true
+        mention_everyone:
+          type: boolean
+          readOnly: true
       required:
+      - attachments
       - author
       - channel_id
       - content
       - created_at
+      - dm_id
       - edited_at
       - id
+      - mention_everyone
+      - mention_roles
+      - mentions
       - nonce
+      - pinned_at
+      - reactions
+      - reply_to
       - type
     MessagePage:
       type: object
@@ -1863,24 +2816,32 @@ components:
     MessageTypeEnum:
       enum:
       - default
+      - reply
       - system
       type: string
       description: |-
         * `default` - Default
+        * `reply` - Reply
         * `system` - System
     MessageWriteRequest:
       type: object
       properties:
         content:
           type: string
-          minLength: 1
+          default: ''
           maxLength: 4000
         nonce:
           type: string
           nullable: true
           maxLength: 64
-      required:
-      - content
+        reply_to:
+          type: string
+          format: uuid
+          nullable: true
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttachmentRefRequest'
     Meta:
       type: object
       properties:
@@ -1894,6 +2855,53 @@ components:
       - environment
       - name
       - version
+    MuteSetting:
+      type: object
+      properties:
+        server_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        channel_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        dm_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        muted_until:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - channel_id
+      - dm_id
+      - muted_until
+      - server_id
+    MuteWriteRequest:
+      type: object
+      properties:
+        target_type:
+          $ref: '#/components/schemas/TargetTypeEnum'
+        target_id:
+          type: string
+          format: uuid
+        muted:
+          type: boolean
+        muted_until:
+          type: string
+          format: date-time
+          nullable: true
+          description: 'Omit or null: until unmuted.'
+      required:
+      - muted
+      - target_id
+      - target_type
     MutualServer:
       type: object
       properties:
@@ -1929,6 +2937,77 @@ components:
       - nickname
       - permissions
       - role_ids
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        type:
+          allOf:
+          - $ref: '#/components/schemas/NotificationTypeEnum'
+          readOnly: true
+        actor:
+          allOf:
+          - $ref: '#/components/schemas/UserSummary'
+          readOnly: true
+          nullable: true
+        message_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        data:
+          type: object
+          additionalProperties: {}
+          readOnly: true
+          description: 'Where it happened and a preview: server_id, server_name, channel_id,
+            channel_name, dm_id, dm_name, content, count (coalesced DMs).'
+        read_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - actor
+      - created_at
+      - data
+      - id
+      - message_id
+      - read_at
+      - type
+    NotificationPage:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+        unread_count:
+          type: integer
+        next_cursor:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+      - next_cursor
+      - results
+      - unread_count
+    NotificationTypeEnum:
+      enum:
+      - mention
+      - reply
+      - dm
+      type: string
+      description: |-
+        * `mention` - Mention
+        * `reply` - Reply
+        * `dm` - Direct message
     Overwrite:
       type: object
       properties:
@@ -2063,6 +3142,15 @@ components:
           type: integer
           maximum: 21600
           minimum: 0
+    PatchedDMUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        closed:
+          type: boolean
+          description: Hide it from your sidebar.
     PatchedMeUpdateRequest:
       type: object
       description: PATCH /users/me input. Responses use MeSerializer.
@@ -2165,23 +3253,64 @@ components:
       - dnd
       - offline
       type: string
+      description: |-
+        * `online` - online
+        * `idle` - idle
+        * `dnd` - dnd
+        * `offline` - offline
     PurposeEnum:
       enum:
+      - attachment
       - avatar
       - server_icon
       type: string
       description: |-
+        * `attachment` - attachment
         * `avatar` - avatar
         * `server_icon` - server_icon
+    ReactionSummary:
+      type: object
+      properties:
+        emoji:
+          type: string
+        count:
+          type: integer
+        me:
+          type: boolean
+          description: Whether the requesting user reacted with it.
+      required:
+      - count
+      - emoji
+      - me
+    ReactionUsers:
+      type: object
+      properties:
+        emoji:
+          type: string
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserSummary'
+      required:
+      - emoji
+      - users
     ReadState:
       type: object
+      description: A channel (with its server) or a DM. For DMs ``mention_count``
+        is the unread count.
       properties:
         channel_id:
           type: string
           format: uuid
+          nullable: true
+        dm_id:
+          type: string
+          format: uuid
+          nullable: true
         server_id:
           type: string
           format: uuid
+          nullable: true
         last_message_id:
           type: string
           format: uuid
@@ -2194,6 +3323,7 @@ components:
           type: integer
       required:
       - channel_id
+      - dm_id
       - last_message_id
       - last_read_message_id
       - mention_count
@@ -2223,6 +3353,39 @@ components:
       - email
       - password
       - username
+    ReplyPreview:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        author:
+          allOf:
+          - $ref: '#/components/schemas/UserSummary'
+          nullable: true
+        content:
+          type: string
+          readOnly: true
+        deleted:
+          type: boolean
+          readOnly: true
+        has_attachments:
+          type: boolean
+          readOnly: true
+      required:
+      - author
+      - content
+      - deleted
+      - has_attachments
+      - id
+    ResourceTypeEnum:
+      enum:
+      - image
+      - raw
+      type: string
+      description: |-
+        * `image` - image
+        * `raw` - raw
     Role:
       type: object
       properties:
@@ -2279,6 +3442,23 @@ components:
           type: boolean
       required:
       - name
+    SearchResultPage:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        total:
+          type: integer
+        next_cursor:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+      - next_cursor
+      - results
+      - total
     Server:
       type: object
       properties:
@@ -2426,16 +3606,29 @@ components:
           type: integer
         allowed_formats:
           type: string
+          description: Images only.
         overwrite:
           type: string
+        resource_type:
+          $ref: '#/components/schemas/ResourceTypeEnum'
       required:
-      - allowed_formats
       - api_key
       - overwrite
       - public_id
+      - resource_type
       - signature
       - timestamp
       - upload_url
+    TargetTypeEnum:
+      enum:
+      - server
+      - channel
+      - dm
+      type: string
+      description: |-
+        * `server` - server
+        * `channel` - channel
+        * `dm` - dm
     TokenRequest:
       type: object
       properties:

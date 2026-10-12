@@ -24,7 +24,7 @@ from rest_framework_simplejwt.tokens import AccessToken
 from apps.accounts.models import User
 from apps.chat_channels.models import Channel
 from apps.messaging.services import send_message
-from apps.servers.access import get_access
+from apps.messaging.targets import channel_target
 from apps.servers.models import Server
 from apps.servers.services import add_member, create_server
 
@@ -119,12 +119,12 @@ class Command(BaseCommand):
         self.stdout.write(f"{len(sockets)} connections open; sending {options['messages']}…")
 
         author = users[0]
-        access = await sync_to_async(get_access)(author, channel.server_id)
+        target = await sync_to_async(channel_target)(author, channel)
         for i in range(options["messages"]):
             nonce = f"lt-{i}"
             sent_at[nonce] = time.perf_counter()
             await sync_to_async(send_message)(
-                access, channel, author=author, content=f"load {i}", nonce=nonce
+                target, author=author, content=f"load {i}", nonce=nonce
             )
             await asyncio.sleep(options["interval"])
         with contextlib.suppress(TimeoutError):  # lost deliveries are reported by the caller

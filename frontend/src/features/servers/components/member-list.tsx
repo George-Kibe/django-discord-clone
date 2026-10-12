@@ -1,14 +1,20 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Crown } from "lucide-react";
+import { Crown, MessageSquare } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { useMemo } from "react";
 
 import { PresenceDot } from "@/components/presence-dot";
 import { useLivePresence } from "@/features/realtime/presence";
 import { UserAvatar } from "@/components/user-avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { useBlockedIds, useOpenDM, useSetBlocked } from "@/features/dms/api";
 import { api } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/errors";
+import { useMe } from "@/lib/auth/session";
 import { cn } from "@/lib/utils";
 
 import { useMembers, useRoles, type Member, type Role } from "../api";
@@ -51,6 +57,55 @@ function topColor(member: Member, roles: Role[]): string | undefined {
     .filter((r) => r.color && member.role_ids.includes(r.id))
     .sort((a, b) => b.position - a.position)[0];
   return colored ? roleColor(colored.color) : undefined;
+}
+
+function ProfileActions({ userId, username }: { userId: string; username: string }) {
+  const { data: me } = useMe();
+  const router = useRouter();
+  const open = useOpenDM();
+  const blocked = useBlockedIds();
+  const setBlocked = useSetBlocked();
+  if (!me || me.id === userId) return null;
+  const isBlocked = blocked.has(userId);
+  return (
+    <div className="flex gap-2">
+      <Button
+        size="sm"
+        className="flex-1"
+        disabled={open.isPending || isBlocked}
+        onClick={async () => {
+          // mutateAsync: the card may unmount meanwhile (e.g. a presence change re-sorts the
+          // member list), and mutate()'s per-call callbacks would then be dropped.
+          try {
+            const dm = await open.mutateAsync({ userIds: [userId] });
+            router.push(`/channels/me/${dm.id}`);
+          } catch (e) {
+            toast.error(e instanceof ApiError ? e.message : "Couldn't open the conversation.");
+          }
+        }}
+      >
+        <MessageSquare /> Message
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={setBlocked.isPending}
+        onClick={() => {
+          if (
+            !isBlocked &&
+            !window.confirm(`Block @${username}? You won't get DMs from each other.`)
+          )
+            return;
+          setBlocked.mutate(
+            { userId, blocked: !isBlocked },
+            { onSuccess: () => toast.success(isBlocked ? "Unblocked." : "Blocked.") },
+          );
+        }}
+      >
+        {isBlocked ? "Unblock" : "Block"}
+      </Button>
+    </div>
+  );
 }
 
 function ProfileCard({ member, roles }: { member: Member; roles: Role[] }) {
@@ -110,6 +165,7 @@ function ProfileCard({ member, roles }: { member: Member; roles: Role[] }) {
       <p className="text-xs text-muted-foreground">
         Member since {new Date(member.joined_at).toLocaleDateString()}
       </p>
+      <ProfileActions userId={member.user.id} username={member.user.username} />
     </div>
   );
 }

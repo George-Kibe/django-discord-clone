@@ -16,6 +16,7 @@ class PendingUpload(UUIDModel):
     )
     public_id = models.CharField(max_length=255, unique=True)
     purpose = models.CharField(max_length=32)
+    resource_type = models.CharField(max_length=8, default="image")  # Cloudinary: image | raw
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     def __str__(self) -> str:

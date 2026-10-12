@@ -1,9 +1,11 @@
 from typing import Any
+from uuid import UUID
 
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
 from drf_spectacular.utils import OpenApiResponse, extend_schema
-from rest_framework import status
+from rest_framework import serializers, status
+from rest_framework.exceptions import NotFound
 from rest_framework.generics import RetrieveAPIView
 from rest_framework.permissions import SAFE_METHODS, AllowAny
 from rest_framework.request import Request
@@ -14,7 +16,7 @@ from apps.media import services as media
 from apps.media.tasks import delete_asset
 from apps.realtime import notify
 
-from . import services
+from . import blocks, services
 from .authentication import enforce_csrf, user_from_access_token
 from .cookies import ACCESS_COOKIE, REFRESH_COOKIE, clear_auth_cookies, set_auth_cookies
 from .exceptions import TokenNotValid
@@ -32,6 +34,7 @@ from .serializers import (
     RegisterSerializer,
     TokenSerializer,
     UserProfileSerializer,
+    UserSummarySerializer,
 )
 from .throttles import IPScopedThrottle, LoginEmailThrottle
 from .tokens import rotate_refresh_token
@@ -284,3 +287,35 @@ class UserDetailView(RetrieveAPIView[User]):
     @extend_schema(tags=USER_TAGS)
     def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         return super().get(request, *args, **kwargs)
+
+
+# ---------------------------------------------------------------------------- blocks (FR-DM-04)
+
+
+class BlockRequestSerializer(serializers.Serializer[dict[str, Any]]):
+    user_id = serializers.UUIDField()
+
+
+class BlockListView(APIView):
+    @extend_schema(responses=UserSummarySerializer(many=True), tags=USER_TAGS)
+    def get(self, request: Request) -> Response:
+        user = current_user(request)
+        blocked = User.objects.filter(blocked_by__blocker=user).order_by("username")
+        return Response(UserSummarySerializer(blocked, many=True).data)
+
+    @extend_schema(request=BlockRequestSerializer, responses={204: None}, tags=USER_TAGS)
+    def post(self, request: Request) -> Response:
+        serializer = BlockRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        target = User.objects.filter(pk=serializer.validated_data["user_id"]).first()
+        if target is None:
+            raise NotFound()
+        blocks.block(current_user(request), target)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class BlockDetailView(APIView):
+    @extend_schema(responses={204: None}, tags=USER_TAGS)
+    def delete(self, request: Request, user_id: UUID) -> Response:
+        blocks.unblock(current_user(request), user_id)
+        return Response(status=status.HTTP_204_NO_CONTENT)

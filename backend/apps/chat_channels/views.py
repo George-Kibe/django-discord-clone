@@ -200,6 +200,7 @@ class ChannelAckView(ChannelScopedView):
             ReadStateSerializer(
                 {
                     "channel_id": channel.pk,
+                    "dm_id": None,
                     "server_id": channel.server_id,
                     "last_message_id": channel.last_message_id,
                     "last_read_message_id": state.last_read_message_id,

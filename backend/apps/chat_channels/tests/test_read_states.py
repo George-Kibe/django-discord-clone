@@ -29,7 +29,7 @@ def post(client, channel, content="hi"):
 def states(client) -> dict[str, dict[str, Any]]:
     response = client.get(reverse("read-states"))
     assert response.status_code == 200
-    return {row["channel_id"]: row for row in response.json()}
+    return {row["channel_id"]: row for row in response.json() if row["channel_id"]}
 
 
 def test_unread_until_acked(user, make_user, server, join, channel, client_for):
@@ -39,6 +39,7 @@ def test_unread_until_acked(user, make_user, server, join, channel, client_for):
 
     assert states(client)[str(channel.pk)] == {
         "channel_id": str(channel.pk),
+        "dm_id": None,
         "server_id": str(server.pk),
         "last_message_id": None,
         "last_read_message_id": None,

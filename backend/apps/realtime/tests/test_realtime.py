@@ -259,6 +259,7 @@ async def test_typing_is_broadcast_with_cooldown(setup):
     typing = await owner.event("typing.started")
     assert typing == {
         "channel_id": channel_id,
+        "dm_id": None,
         "user_id": str(setup["member"].pk),
         "username": setup["member"].username,
         "display_name": setup["member"].display_name,
@@ -453,6 +454,7 @@ async def test_ack_syncs_the_users_other_tabs(setup):
     state = await socket.event("read_state.updated")
     assert state == {
         "channel_id": str(channel.pk),
+        "dm_id": None,
         "server_id": str(setup["server"].pk),
         "last_read_message_id": sent["id"],
         "mention_count": 0,
@@ -492,3 +494,65 @@ async def test_cleanup_runs_even_if_the_client_vanishes_mid_connect(setup):
     with pytest.raises(OSError):
         await communicator.wait(timeout=2)
     assert presence.get_presence([uid]) == {uid: "offline"}
+
+
+# ---------------------------------------------------------------------------- Phase 5
+
+
+async def test_dm_messages_typing_and_new_conversations_are_live(setup):
+    owner = await open_socket(setup["owner"])
+    member = await open_socket(setup["member"])
+    conversation = await arest(
+        setup["owner"], "post", reverse("dms"), {"user_ids": [str(setup["member"].pk)]}
+    )
+    dm_id = conversation["id"]
+    assert (await member.event("dm.created"))["dm_id"] == dm_id  # and its socket joined the group
+
+    await member.request("typing.start", {"dm_id": dm_id})
+    typing = await owner.event("typing.started")
+    assert typing["dm_id"] == dm_id and typing["channel_id"] is None
+
+    await arest(setup["owner"], "post", reverse("dm-messages", args=[dm_id]), {"content": "psst"})
+    created = await member.event("message.created")
+    assert created["dm_id"] == dm_id and created["content"] == "psst"
+    unread = await member.event("read_state.updated", dm_id=dm_id)
+    assert unread["mention_count"] == 1
+    notification = await member.event("notification.created")
+    assert notification["type"] == "dm" and notification["data"]["count"] == 1
+
+    outsider = await open_socket(setup["outsider"])
+    await outsider.request("typing.start", {"dm_id": dm_id}, id="x")
+    assert (await outsider.c.receive_json_from(timeout=2))["data"] == {"code": "forbidden"}
+    for socket in (owner, member, outsider):
+        await socket.close()
+
+
+async def test_reactions_pins_and_mentions_are_live(setup):
+    member = await open_socket(setup["member"])
+    channel = setup["channel"]
+    message = await arest(
+        setup["owner"],
+        "post",
+        reverse("channel-messages", args=[channel.pk]),
+        {"content": f"<@{setup['member'].pk}> look"},
+    )
+    counted = await member.event("read_state.updated", channel_id=str(channel.pk))
+    assert counted["mention_count"] == 1
+    mention = await member.event("notification.created")
+    assert mention["type"] == "mention" and mention["message_id"] == message["id"]
+
+    await arest(setup["owner"], "put", reverse("message-reaction", args=[message["id"], "🔥"]))
+    added = await member.event("reaction.added")
+    assert added == {
+        "message_id": message["id"],
+        "emoji": "🔥",
+        "user_id": str(setup["owner"].pk),
+        "count": 1,
+        "channel_id": str(channel.pk),
+        "dm_id": None,
+        "server_id": str(setup["server"].pk),
+    }
+    await arest(setup["owner"], "put", reverse("message-pin", args=[message["id"]]))
+    assert (await member.event("message.updated"))["pinned_at"]
+    assert (await member.event("pins.updated"))["channel_id"] == str(channel.pk)
+    await member.close()

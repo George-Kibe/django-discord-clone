@@ -1,14 +1,12 @@
 "use client";
 
-import { Hash } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { useRealtime } from "@/features/realtime/provider";
-import { useAck, useReadStates } from "@/features/realtime/read-states";
+import { stateKey, useAck, useReadStates } from "@/features/realtime/read-states";
+import { useBlockedIds } from "@/features/dms/api";
 import { useMe } from "@/lib/auth/session";
 import { hasPerm } from "@/lib/permissions";
-
-import type { Channel } from "@/features/servers/api";
 
 import {
   flattenMessages,
@@ -17,35 +15,41 @@ import {
   useMessages,
   useSendMessage,
   type ChatMessage,
+  type Conversation,
 } from "../api";
+import type { Mentionables } from "../mentions";
 import { Composer } from "./composer";
+import type { MentionStyle } from "./markdown";
+import type { MessageContext } from "./message-item";
 import { MessageList } from "./message-list";
 import { TypingIndicator } from "./typing-indicator";
 
 const TYPING_EVERY_MS = 5000; // the server shows "typing" for 8 s per signal
-
 const ACK_EVERY_MS = 1000;
 
 /**
- * Marks the channel read while the newest message is on screen and the tab is visible.
+ * Marks the conversation read while the newest message is on screen and the tab is visible.
  * Throttled: a busy channel sends at most one ack per second (for the newest message then).
  */
-function useAutoAck(channelId: string, newestId: string | undefined, atBottom: boolean) {
-  const { mutate: ack } = useAck(channelId);
+function useAutoAck(conversation: Conversation, newestId: string | undefined, atBottom: boolean) {
+  const { mutate: ack } = useAck(conversation);
   const { data: states } = useReadStates();
-  const lastRead = states?.find((s) => s.channel_id === channelId)?.last_read_message_id;
+  const state = states?.find((s) => stateKey(s) === conversation.id);
+  const lastRead = state?.last_read_message_id;
+  const unread = (state?.mention_count ?? 0) > 0;
   const sent = useRef<string | undefined>(undefined);
-  const latest = useRef({ newestId, atBottom, lastRead });
+  const latest = useRef({ newestId, atBottom, lastRead, unread });
   const timer = useRef<number | null>(null);
 
   useEffect(() => {
-    latest.current = { newestId, atBottom, lastRead };
+    latest.current = { newestId, atBottom, lastRead, unread };
   });
 
   const flush = useCallback(() => {
-    const { newestId: id, atBottom: bottom, lastRead: read } = latest.current;
+    const { newestId: id, atBottom: bottom, lastRead: read, unread: badge } = latest.current;
     if (!bottom || !id || document.visibilityState !== "visible") return;
-    if ((read && read >= id) || (sent.current && sent.current >= id)) return;
+    const upToDate = (read && read >= id) || (sent.current && sent.current >= id);
+    if (upToDate && !badge) return;
     sent.current = id;
     ack(id);
   }, [ack]);
@@ -56,7 +60,7 @@ function useAutoAck(channelId: string, newestId: string | undefined, atBottom: b
       timer.current = null;
       flush();
     }, ACK_EVERY_MS);
-  }, [atBottom, newestId, flush]);
+  }, [atBottom, newestId, unread, flush]);
 
   useEffect(() => {
     document.addEventListener("visibilitychange", flush);
@@ -69,14 +73,38 @@ function useAutoAck(channelId: string, newestId: string | undefined, atBottom: b
 }
 
 export function ChatView({
-  channel,
+  conversation,
+  label,
+  title,
+  icon,
+  topic,
+  permissions,
+  mentionables,
+  mentionStyle = {},
+  myRoleIds = new Set(),
+  intro,
   headerStart,
+  headerActions,
+  sendBlockedReason,
 }: {
-  channel: Channel;
-  headerStart?: React.ReactNode;
+  conversation: Conversation;
+  /** "#general" / "@ana": composer placeholder and accessible names. */
+  label: string;
+  title: ReactNode;
+  icon: ReactNode;
+  topic?: string;
+  permissions: number;
+  mentionables: Mentionables;
+  mentionStyle?: MentionStyle;
+  myRoleIds?: ReadonlySet<string>;
+  intro: ReactNode;
+  headerStart?: ReactNode;
+  headerActions?: ReactNode;
+  /** Why sending is impossible even with permissions (e.g. a block). */
+  sendBlockedReason?: string;
 }) {
   const { data: me } = useMe();
-  const messages = useMessages(channel.id);
+  const messages = useMessages(conversation);
   const author = me
     ? {
         id: me.id,
@@ -85,42 +113,66 @@ export function ChatView({
         avatar_url: me.avatar_url,
       }
     : null;
-  const send = useSendMessage(channel.id, author);
-  const discard = useDeleteMessage(channel.id);
+  const send = useSendMessage(conversation, author);
+  const discard = useDeleteMessage(conversation);
+  const blockedIds = useBlockedIds();
   const list = useMemo(() => flattenMessages(messages.data), [messages.data]);
   const newestId = useMemo(() => list.findLast((m) => !m.pending)?.id, [list]);
   const [atBottom, setAtBottom] = useState(true);
-  useAutoAck(channel.id, newestId, atBottom);
+  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
+  useAutoAck(conversation, newestId, atBottom);
   const { request } = useRealtime();
   const lastTyping = useRef(0);
-  const canSend = hasPerm(channel.permissions, "SEND_MESSAGES") && Boolean(me?.email_verified);
+  const verified = Boolean(me?.email_verified);
+  const canSend = hasPerm(permissions, "SEND_MESSAGES") && verified && !sendBlockedReason;
   const { fetchNextPage, isFetchingNextPage, hasNextPage } = messages;
   const loadOlder = useCallback(() => void fetchNextPage(), [fetchNextPage]);
 
   function typing() {
     const now = Date.now();
     if (now - lastTyping.current < TYPING_EVERY_MS) return;
-    if (request("typing.start", { channel_id: channel.id })) lastTyping.current = now;
+    const target =
+      conversation.kind === "channel"
+        ? { channel_id: conversation.id }
+        : { dm_id: conversation.id };
+    if (request("typing.start", target)) lastTyping.current = now;
   }
 
-  function retry(message: ChatMessage) {
-    discard.mutate(message);
-    send.mutate({ content: message.content, nonce: message.nonce ?? newNonce() });
-  }
+  const ctx: MessageContext = {
+    conversation,
+    myId: me?.id ?? "",
+    myRoleIds,
+    canManageMessages: hasPerm(permissions, "MANAGE_MESSAGES"),
+    canReact: hasPerm(permissions, "ADD_REACTIONS") && !sendBlockedReason,
+    canPin: conversation.kind === "dm" || hasPerm(permissions, "MANAGE_MESSAGES"),
+    blockedIds,
+    mentionables,
+    mentionStyle,
+    onReply: setReplyTo,
+    onRetry: (message) => {
+      discard.mutate(message);
+      send.mutate({
+        content: message.content,
+        nonce: message.nonce ?? newNonce(),
+        replyTo: null,
+      });
+    },
+  };
 
   return (
-    <section className="flex min-h-0 min-w-0 flex-1 flex-col" aria-label={`#${channel.name}`}>
+    <section className="flex min-h-0 min-w-0 flex-1 flex-col" aria-label={label}>
       <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-2 md:px-4">
         {headerStart}
-        <Hash className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+        <span className="shrink-0 text-muted-foreground">{icon}</span>
         <h1 className="truncate font-semibold" data-testid="channel-title">
-          {channel.name}
+          {title}
         </h1>
-        {channel.topic ? (
+        {topic ? (
           <p className="hidden truncate border-l border-border pl-2 text-sm text-muted-foreground sm:block">
-            {channel.topic}
+            {topic}
           </p>
         ) : null}
+        <div className="ml-auto flex items-center gap-1">{headerActions}</div>
       </header>
       {messages.isPending ? (
         <div className="flex-1" role="status" aria-label="Loading messages" />
@@ -131,27 +183,31 @@ export function ChatView({
       ) : (
         <MessageList
           messages={list}
-          channelName={channel.name}
+          channelName={label}
           hasOlder={Boolean(hasNextPage)}
           loadingOlder={isFetchingNextPage}
           onLoadOlder={loadOlder}
-          myId={me?.id ?? ""}
-          canManageMessages={hasPerm(channel.permissions, "MANAGE_MESSAGES")}
-          onRetry={retry}
+          ctx={ctx}
+          intro={intro}
           onAtBottomChange={setAtBottom}
         />
       )}
-      <TypingIndicator channelId={channel.id} />
+      <TypingIndicator channelId={conversation.id} />
       <Composer
-        channelName={channel.name}
+        label={label}
         disabled={!canSend}
         disabledReason={
-          me && !me.email_verified ? "Verify your email to send messages." : undefined
+          sendBlockedReason ?? (me && !verified ? "Verify your email to send messages." : undefined)
         }
+        canAttach={hasPerm(permissions, "ATTACH_FILES")}
+        mentionables={mentionables}
+        replyTo={replyTo}
+        onCancelReply={() => setReplyTo(null)}
         onTyping={typing}
-        onSend={(content) => {
+        onSend={(content, attachments) => {
           lastTyping.current = 0; // the next keystroke signals typing again right away
-          send.mutate({ content, nonce: newNonce() });
+          send.mutate({ content, nonce: newNonce(), replyTo, attachments });
+          setReplyTo(null);
         }}
       />
     </section>

@@ -7,11 +7,13 @@ import type { ReactNode } from "react";
 
 import { MobileSidebar } from "@/components/app/mobile-sidebar";
 import { SidebarShell } from "@/components/app/sidebar-shell";
+import { DMList } from "@/features/dms/components/dm-list";
 import { useMe } from "@/lib/auth/session";
 import { cn } from "@/lib/utils";
 
 function NavLink({ href, icon, children }: { href: string; icon: ReactNode; children: ReactNode }) {
-  const active = usePathname().startsWith(href);
+  const pathname = usePathname();
+  const active = href === "/channels/me" ? pathname === href : pathname.startsWith(href);
   return (
     <Link
       href={href}
@@ -43,16 +45,18 @@ function HomeNav() {
 export function HomeSidebar() {
   const { data: me } = useMe();
   if (!me) return null;
-  const header = <span className="px-4 font-semibold">Direct messages</span>;
+  const header = <span className="px-4 font-semibold">Home</span>;
   return (
     <>
       <SidebarShell me={me} header={header} className="hidden md:flex">
         <HomeNav />
+        <DMList />
       </SidebarShell>
       <div className="absolute top-14 left-2 z-10 md:hidden">
         <MobileSidebar label="navigation">
           <SidebarShell me={me} header={header} className="w-full border-r-0">
             <HomeNav />
+            <DMList />
           </SidebarShell>
         </MobileSidebar>
       </div>

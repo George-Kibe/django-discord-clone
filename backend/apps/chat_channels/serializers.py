@@ -93,8 +93,11 @@ class AckSerializer(serializers.Serializer[dict[str, Any]]):
 
 
 class ReadStateSerializer(serializers.Serializer[dict[str, Any]]):
-    channel_id = serializers.UUIDField()
-    server_id = serializers.UUIDField()
+    """A channel (with its server) or a DM. For DMs ``mention_count`` is the unread count."""
+
+    channel_id = serializers.UUIDField(allow_null=True)
+    dm_id = serializers.UUIDField(allow_null=True)
+    server_id = serializers.UUIDField(allow_null=True)
     last_message_id = serializers.UUIDField(allow_null=True)
     last_read_message_id = serializers.UUIDField(allow_null=True)
     mention_count = serializers.IntegerField()

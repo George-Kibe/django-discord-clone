@@ -130,3 +130,31 @@ def get_access(user: User, server: Server | Any) -> ServerAccess:
         roles=list(member.roles.all()),
         everyone=everyone,
     )
+
+
+def members_with_channel_perm(
+    channel: Channel, perm: Perm, user_ids: Any = None
+) -> dict[Any, ServerAccess]:
+    """Members (optionally only ``user_ids``) holding ``perm`` (and VIEW_CHANNEL) in ``channel``,
+    keyed by user id. Used to decide who a mention or @everyone reaches."""
+    members = (
+        Member.objects.filter(server_id=channel.server_id)
+        .select_related("server", "user")
+        .prefetch_related("roles")
+    )
+    if user_ids is not None:
+        members = members.filter(user_id__in=list(user_ids))
+    everyone = Role.objects.get(server_id=channel.server_id, is_default=True)
+    result: dict[Any, ServerAccess] = {}
+    for member in members:
+        access = ServerAccess(
+            user=member.user,
+            server=member.server,
+            member=member,
+            roles=list(member.roles.all()),
+            everyone=everyone,
+        )
+        perms = access.channel_perms(channel)
+        if perms & Perm.VIEW_CHANNEL and perms & perm:
+            result[member.user_id] = access
+    return result

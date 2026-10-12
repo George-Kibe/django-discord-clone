@@ -11,7 +11,7 @@ from apps.accounts.models import User
 from apps.core.permissions import Perm
 
 from . import presence, subscriptions
-from .events import channel_group, server_group, user_group
+from .events import channel_group, dm_group, server_group, user_group
 
 
 class PingConsumer(AsyncJsonWebsocketConsumer):
@@ -38,6 +38,18 @@ def _subscriptions(user: User) -> subscriptions.Subscriptions:
 @database_sync_to_async
 def _server_subscriptions(user: User, server_id: str) -> dict[str, int] | None:
     return subscriptions.compute_server(user, server_id)
+
+
+@database_sync_to_async
+def _dm_ids(user: User) -> list[str]:
+    from apps.messaging.models import DMParticipant
+
+    return [
+        str(dm_id)
+        for dm_id in DMParticipant.objects.filter(user=user).values_list(
+            "conversation_id", flat=True
+        )
+    ]
 
 
 @database_sync_to_async
@@ -76,6 +88,7 @@ class GatewayConsumer(AsyncJsonWebsocketConsumer):
         self.expiry_task: asyncio.Task[None] | None = None
         self.seq = 0
         self.subs = {}
+        self.dms: set[str] = set()
         self.frames: deque[float] = deque()
         self.last_typing: dict[str, float] = {}
         self.redis = presence.async_client()
@@ -84,6 +97,8 @@ class GatewayConsumer(AsyncJsonWebsocketConsumer):
         await self.channel_layer.group_add(user_group(self.uid), self.channel_name)
         for server_id, channels in (await _subscriptions(user)).items():
             await self._apply_server(server_id, channels)
+        for dm_id in await _dm_ids(user):
+            await self._join_dm(dm_id)
 
         version = await presence.connect(self.redis, self.uid, self.conn_id, self.status)
         if version:
@@ -122,6 +137,8 @@ class GatewayConsumer(AsyncJsonWebsocketConsumer):
         server_ids = list(self.subs)
         for server_id in server_ids:
             await self._drop_server(server_id)
+        for dm_id in list(self.dms):
+            await self._leave_dm(dm_id)
         await self.channel_layer.group_discard(user_group(self.uid), self.channel_name)
         try:
             version = await presence.disconnect(self.redis, self.uid, self.conn_id)
@@ -153,6 +170,8 @@ class GatewayConsumer(AsyncJsonWebsocketConsumer):
             await self._respond(kind, request_id, {"status": data["status"]})
         elif kind == "typing.start" and isinstance(data.get("channel_id"), str):
             await self._typing(data["channel_id"], request_id)
+        elif kind == "typing.start" and isinstance(data.get("dm_id"), str):
+            await self._typing_dm(data["dm_id"], request_id)
         else:
             await self.close(code=4400)
 
@@ -172,6 +191,31 @@ class GatewayConsumer(AsyncJsonWebsocketConsumer):
                 "event": "typing.started",
                 "data": {
                     "channel_id": channel_id,
+                    "dm_id": None,
+                    "user_id": self.uid,
+                    "username": self.user.username,
+                    "display_name": self.user.display_name,
+                    "expires_in": self.TYPING_TTL,
+                },
+            },
+        )
+
+    async def _typing_dm(self, dm_id: str, request_id: Any) -> None:
+        if dm_id not in self.dms:
+            await self._error("typing.start", request_id, "forbidden")
+            return
+        now = time.monotonic()
+        if now - self.last_typing.get(dm_id, 0) < self.TYPING_COOLDOWN:
+            return
+        self.last_typing[dm_id] = now
+        await self.channel_layer.group_send(
+            dm_group(dm_id),
+            {
+                "type": "realtime.event",
+                "event": "typing.started",
+                "data": {
+                    "channel_id": None,
+                    "dm_id": dm_id,
                     "user_id": self.uid,
                     "username": self.user.username,
                     "display_name": self.user.display_name,
@@ -198,6 +242,10 @@ class GatewayConsumer(AsyncJsonWebsocketConsumer):
         action = message.get("action")
         if action == "resync":
             await self._resync(message["server_id"])
+        elif action == "dm_join":
+            await self._join_dm(message["dm_id"])
+        elif action == "dm_leave":
+            await self._leave_dm(message["dm_id"])
         elif action == "close":
             await self.close(code=int(message.get("code", 4401)))
 
@@ -226,6 +274,16 @@ class GatewayConsumer(AsyncJsonWebsocketConsumer):
         for channel_id in channels.keys() - old.keys():
             await self.channel_layer.group_add(channel_group(channel_id), self.channel_name)
         self.subs[server_id] = channels
+
+    async def _join_dm(self, dm_id: str) -> None:
+        if dm_id not in self.dms:
+            self.dms.add(dm_id)
+            await self.channel_layer.group_add(dm_group(dm_id), self.channel_name)
+
+    async def _leave_dm(self, dm_id: str) -> None:
+        if dm_id in self.dms:
+            self.dms.discard(dm_id)
+            await self.channel_layer.group_discard(dm_group(dm_id), self.channel_name)
 
     async def _drop_server(self, server_id: str) -> None:
         for channel_id in self.subs.pop(server_id, {}):

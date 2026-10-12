@@ -268,6 +268,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** @description History + send, shared by channels and DMs. */
         get: operations["channels_messages_retrieve"];
         put?: never;
         /** @description A repeated `nonce` returns the original message with 200 (idempotent retry). */
@@ -306,6 +307,154 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["channels_overwrites_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channels/{channel_id}/pins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["channels_pins_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["dms_list"];
+        put?: never;
+        /** @description One user: returns the existing 1:1 conversation (200) or creates it (201). */
+        post: operations["dms_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dms/{dm_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["dms_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["dms_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/dms/{dm_id}/ack": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["dms_ack_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dms/{dm_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description History + send, shared by channels and DMs. */
+        get: operations["dms_messages_retrieve"];
+        put?: never;
+        /** @description History + send, shared by channels and DMs. */
+        post: operations["dms_messages_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dms/{dm_id}/messages/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["dms_messages_search_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dms/{dm_id}/participants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["dms_participants_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dms/{dm_id}/participants/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Leave, or remove someone (owner) */
+        delete: operations["dms_participants_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dms/{dm_id}/pins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["dms_pins_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -378,6 +527,43 @@ export interface paths {
         patch: operations["messages_partial_update"];
         trace?: never;
     };
+    "/api/v1/messages/{message_id}/pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Pin a message */
+        put: operations["messages_pin_update"];
+        post?: never;
+        /** Unpin a message */
+        delete: operations["messages_pin_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/messages/{message_id}/reactions/{emoji}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Who reacted */
+        get: operations["messages_reactions_retrieve"];
+        /** Add your reaction */
+        put: operations["messages_reactions_update"];
+        post?: never;
+        /** Remove your reaction */
+        delete: operations["messages_reactions_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/meta": {
         parameters: {
             query?: never;
@@ -389,6 +575,54 @@ export interface paths {
         get: operations["meta_retrieve"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mute-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["mute_settings_list"];
+        put: operations["mute_settings_update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["notifications_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["notifications_read_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -591,6 +825,22 @@ export interface paths {
         patch: operations["servers_members_partial_update"];
         trace?: never;
     };
+    "/api/v1/servers/{server_id}/messages/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["servers_messages_search_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/servers/{server_id}/roles": {
         parameters: {
             query?: never;
@@ -721,6 +971,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/me/blocks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["users_me_blocks_list"];
+        put?: never;
+        post: operations["users_me_blocks_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/blocks/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["users_me_blocks_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/contacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** People you share a server with */
+        get: operations["users_me_contacts_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/me/email": {
         parameters: {
             query?: never;
@@ -745,8 +1044,30 @@ export interface components {
             /** Format: uuid */
             message_id: string;
         };
+        Attachment: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly filename: string;
+            readonly content_type: string;
+            readonly size_bytes: number;
+            readonly width: number | null;
+            readonly height: number | null;
+            readonly is_image: boolean;
+            readonly url: string | null;
+            readonly preview_url: string | null;
+        };
+        AttachmentRefRequest: {
+            /** @description From POST /media/sign (purpose=attachment), uploaded. */
+            public_id: string;
+            /** @description The original file name. */
+            filename: string;
+        };
         AvatarRequest: {
             public_id: string;
+        };
+        BlockRequestRequest: {
+            /** Format: uuid */
+            user_id: string;
         };
         Category: {
             /** Format: uuid */
@@ -790,6 +1111,48 @@ export interface components {
             /** Format: uuid */
             category_id?: string | null;
             slowmode_seconds?: number;
+        };
+        DMAck: {
+            /** Format: uuid */
+            last_read_message_id: string;
+        };
+        DMAckRequestRequest: {
+            /** Format: uuid */
+            message_id: string;
+        };
+        DMAddParticipantsRequest: {
+            user_ids: string[];
+        };
+        /** @description Context: ``participants`` ({dm_id: [User]}), ``me`` (DMParticipant by dm id). */
+        DMConversation: {
+            /** Format: uuid */
+            id: string;
+            is_group: boolean;
+            name: string;
+            /** Format: uuid */
+            owner_id: string | null;
+            /** Format: uuid */
+            last_message_id: string | null;
+            /** @description Everyone except you. */
+            readonly recipients: components["schemas"]["DMRecipient"][];
+            /** Format: uuid */
+            readonly last_read_message_id: string | null;
+            readonly unread_count: number;
+        };
+        DMCreateRequest: {
+            /** @description One user opens (or reuses) a 1:1 DM; more create a group DM. */
+            user_ids: string[];
+            /** @default  */
+            name: string;
+        };
+        /** @description Compact user embedded in messages, members and invites. */
+        DMRecipient: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly username: string;
+            readonly display_name: string;
+            readonly avatar_url: string | null;
+            presence: components["schemas"]["PresenceEnum"];
         };
         Detail: {
             detail: string;
@@ -867,6 +1230,11 @@ export interface components {
             email: string;
             password: string;
         };
+        MarkReadRequest: {
+            ids?: string[];
+            /** @default false */
+            all: boolean;
+        };
         /**
          * @description * `0` - 0
          *     * `1800` - 1800
@@ -906,11 +1274,20 @@ export interface components {
             /** @description online, idle, dnd or offline (invisible users appear offline). */
             readonly presence: components["schemas"]["PresenceEnum"];
         };
+        MentionRole: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            color: number;
+        };
+        /** @description Context: ``reactions`` ({message_id: [summary]}) from ``services.reaction_summaries``. */
         Message: {
             /** Format: uuid */
             readonly id: string;
             /** Format: uuid */
-            readonly channel_id: string;
+            readonly channel_id: string | null;
+            /** Format: uuid */
+            readonly dm_id: string | null;
             readonly author: components["schemas"]["UserSummary"] | null;
             readonly type: components["schemas"]["MessageTypeEnum"];
             readonly content: string;
@@ -919,6 +1296,14 @@ export interface components {
             readonly created_at: string;
             /** Format: date-time */
             readonly edited_at: string | null;
+            /** Format: date-time */
+            readonly pinned_at: string | null;
+            readonly reply_to: components["schemas"]["ReplyPreview"] | null;
+            readonly attachments: components["schemas"]["Attachment"][];
+            readonly reactions: components["schemas"]["ReactionSummary"][];
+            readonly mentions: components["schemas"]["UserSummary"][];
+            readonly mention_roles: components["schemas"]["MentionRole"][];
+            readonly mention_everyone: boolean;
         };
         MessagePage: {
             results: components["schemas"]["Message"][];
@@ -926,18 +1311,44 @@ export interface components {
         };
         /**
          * @description * `default` - Default
+         *     * `reply` - Reply
          *     * `system` - System
          * @enum {string}
          */
-        MessageTypeEnum: "default" | "system";
+        MessageTypeEnum: "default" | "reply" | "system";
         MessageWriteRequest: {
+            /** @default  */
             content: string;
             nonce?: string | null;
+            /** Format: uuid */
+            reply_to?: string | null;
+            attachments?: components["schemas"]["AttachmentRefRequest"][];
         };
         Meta: {
             name: string;
             version: string;
             environment: string;
+        };
+        MuteSetting: {
+            /** Format: uuid */
+            readonly server_id: string | null;
+            /** Format: uuid */
+            readonly channel_id: string | null;
+            /** Format: uuid */
+            readonly dm_id: string | null;
+            /** Format: date-time */
+            readonly muted_until: string | null;
+        };
+        MuteWriteRequest: {
+            target_type: components["schemas"]["TargetTypeEnum"];
+            /** Format: uuid */
+            target_id: string;
+            muted: boolean;
+            /**
+             * Format: date-time
+             * @description Omit or null: until unmuted.
+             */
+            muted_until?: string | null;
         };
         MutualServer: {
             /** Format: uuid */
@@ -952,6 +1363,35 @@ export interface components {
             role_ids: string[];
             nickname: string;
         };
+        Notification: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly type: components["schemas"]["NotificationTypeEnum"];
+            readonly actor: components["schemas"]["UserSummary"] | null;
+            /** Format: uuid */
+            readonly message_id: string | null;
+            /** @description Where it happened and a preview: server_id, server_name, channel_id, channel_name, dm_id, dm_name, content, count (coalesced DMs). */
+            readonly data: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            readonly read_at: string | null;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        NotificationPage: {
+            results: components["schemas"]["Notification"][];
+            unread_count: number;
+            /** Format: uuid */
+            next_cursor: string | null;
+        };
+        /**
+         * @description * `mention` - Mention
+         *     * `reply` - Reply
+         *     * `dm` - Direct message
+         * @enum {string}
+         */
+        NotificationTypeEnum: "mention" | "reply" | "dm";
         Overwrite: {
             /** Format: uuid */
             readonly id: string;
@@ -1006,6 +1446,11 @@ export interface components {
             category_id?: string | null;
             slowmode_seconds?: number;
         };
+        PatchedDMUpdateRequest: {
+            name?: string;
+            /** @description Hide it from your sidebar. */
+            closed?: boolean;
+        };
         /** @description PATCH /users/me input. Responses use MeSerializer. */
         PatchedMeUpdateRequest: {
             username?: string;
@@ -1044,19 +1489,39 @@ export interface components {
             value: number;
             description: string;
         };
-        /** @enum {string} */
+        /**
+         * @description * `online` - online
+         *     * `idle` - idle
+         *     * `dnd` - dnd
+         *     * `offline` - offline
+         * @enum {string}
+         */
         PresenceEnum: "online" | "idle" | "dnd" | "offline";
         /**
-         * @description * `avatar` - avatar
+         * @description * `attachment` - attachment
+         *     * `avatar` - avatar
          *     * `server_icon` - server_icon
          * @enum {string}
          */
-        PurposeEnum: "avatar" | "server_icon";
+        PurposeEnum: "attachment" | "avatar" | "server_icon";
+        ReactionSummary: {
+            emoji: string;
+            count: number;
+            /** @description Whether the requesting user reacted with it. */
+            me: boolean;
+        };
+        ReactionUsers: {
+            emoji: string;
+            users: components["schemas"]["UserSummary"][];
+        };
+        /** @description A channel (with its server) or a DM. For DMs ``mention_count`` is the unread count. */
         ReadState: {
             /** Format: uuid */
-            channel_id: string;
+            channel_id: string | null;
             /** Format: uuid */
-            server_id: string;
+            dm_id: string | null;
+            /** Format: uuid */
+            server_id: string | null;
             /** Format: uuid */
             last_message_id: string | null;
             /** Format: uuid */
@@ -1070,6 +1535,20 @@ export interface components {
             display_name?: string;
             password: string;
         };
+        ReplyPreview: {
+            /** Format: uuid */
+            id: string;
+            author: components["schemas"]["UserSummary"] | null;
+            readonly content: string;
+            readonly deleted: boolean;
+            readonly has_attachments: boolean;
+        };
+        /**
+         * @description * `image` - image
+         *     * `raw` - raw
+         * @enum {string}
+         */
+        ResourceTypeEnum: "image" | "raw";
         Role: {
             /** Format: uuid */
             readonly id: string;
@@ -1089,6 +1568,12 @@ export interface components {
             permissions?: number;
             mentionable?: boolean;
             hoist?: boolean;
+        };
+        SearchResultPage: {
+            results: components["schemas"]["Message"][];
+            total: number;
+            /** Format: uuid */
+            next_cursor: string | null;
         };
         Server: {
             /** Format: uuid */
@@ -1138,9 +1623,18 @@ export interface components {
             signature: string;
             public_id: string;
             timestamp: number;
-            allowed_formats: string;
+            /** @description Images only. */
+            allowed_formats?: string;
             overwrite: string;
+            resource_type: components["schemas"]["ResourceTypeEnum"];
         };
+        /**
+         * @description * `server` - server
+         *     * `channel` - channel
+         *     * `dm` - dm
+         * @enum {string}
+         */
+        TargetTypeEnum: "server" | "channel" | "dm";
         TokenRequest: {
             token: string;
         };
@@ -1633,7 +2127,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["MessageWriteRequest"];
             };
@@ -1721,6 +2215,312 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    channels_pins_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"][];
+                };
+            };
+        };
+    };
+    dms_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DMConversation"][];
+                };
+            };
+        };
+    };
+    dms_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DMCreateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DMConversation"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DMConversation"];
+                };
+            };
+        };
+    };
+    dms_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dm_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DMConversation"];
+                };
+            };
+        };
+    };
+    dms_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dm_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedDMUpdateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DMConversation"];
+                };
+            };
+        };
+    };
+    dms_ack_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dm_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DMAckRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DMAck"];
+                };
+            };
+        };
+    };
+    dms_messages_retrieve: {
+        parameters: {
+            query?: {
+                /** @description Message id: newer messages, oldest first */
+                after?: string;
+                /** @description Message id: older messages, newest first */
+                before?: string;
+                /** @description 1-100, default 50 */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                dm_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessagePage"];
+                };
+            };
+        };
+    };
+    dms_messages_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dm_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["MessageWriteRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+        };
+    };
+    dms_messages_search_retrieve: {
+        parameters: {
+            query?: {
+                /** @description YYYY-MM-DD */
+                after?: string;
+                /** @description User id */
+                author?: string;
+                /** @description YYYY-MM-DD */
+                before?: string;
+                /** @description Channel id (server search) */
+                channel?: string;
+                cursor?: string;
+                has?: "attachment" | "file" | "image";
+                /** @description 1-50, default 25 */
+                limit?: number;
+                /** @description Words or phrases (web-search syntax: "quotes", -not) */
+                q?: string;
+            };
+            header?: never;
+            path: {
+                dm_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResultPage"];
+                };
+            };
+        };
+    };
+    dms_participants_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dm_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DMAddParticipantsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DMConversation"];
+                };
+            };
+        };
+    };
+    dms_participants_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dm_id: string;
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    dms_pins_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dm_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"][];
+                };
             };
         };
     };
@@ -1854,6 +2654,111 @@ export interface operations {
             };
         };
     };
+    messages_pin_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+        };
+    };
+    messages_pin_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    messages_reactions_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                emoji: string;
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReactionUsers"];
+                };
+            };
+        };
+    };
+    messages_reactions_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                emoji: string;
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    messages_reactions_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                emoji: string;
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     meta_retrieve: {
         parameters: {
             query?: never;
@@ -1870,6 +2775,95 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Meta"];
                 };
+            };
+        };
+    };
+    mute_settings_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MuteSetting"][];
+                };
+            };
+        };
+    };
+    mute_settings_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MuteWriteRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MuteSetting"][];
+                };
+            };
+        };
+    };
+    notifications_retrieve: {
+        parameters: {
+            query?: {
+                /** @description `next_cursor` from the last page */
+                cursor?: string;
+                /** @description 1-50, default 25 */
+                limit?: number;
+                unread?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPage"];
+                };
+            };
+        };
+    };
+    notifications_read_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["MarkReadRequest"];
+            };
+        };
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -2275,6 +3269,42 @@ export interface operations {
             };
         };
     };
+    servers_messages_search_retrieve: {
+        parameters: {
+            query?: {
+                /** @description YYYY-MM-DD */
+                after?: string;
+                /** @description User id */
+                author?: string;
+                /** @description YYYY-MM-DD */
+                before?: string;
+                /** @description Channel id (server search) */
+                channel?: string;
+                cursor?: string;
+                has?: "attachment" | "file" | "image";
+                /** @description 1-50, default 25 */
+                limit?: number;
+                /** @description Words or phrases (web-search syntax: "quotes", -not) */
+                q?: string;
+            };
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResultPage"];
+                };
+            };
+        };
+    };
     servers_roles_list: {
         parameters: {
             query?: never;
@@ -2538,6 +3568,89 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    users_me_blocks_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserSummary"][];
+                };
+            };
+        };
+    };
+    users_me_blocks_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BlockRequestRequest"];
+            };
+        };
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    users_me_blocks_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    users_me_contacts_list: {
+        parameters: {
+            query?: {
+                /** @description Username or display name */
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserSummary"][];
+                };
             };
         };
     };

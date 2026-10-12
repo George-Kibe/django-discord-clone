@@ -43,6 +43,7 @@ Lightweight ADRs. Each records a decision, its context and its consequences. ADR
 | 022 | Signed-in app fetches user data client-side; `session` hint cookie | Accepted |
 | 023 | Backups: age public-key encryption + rclone to any S3 | Accepted |
 | 024 | Gateway: automatic subscriptions, close-on-expiry, patch hot data | Accepted |
+| 025 | Messaging: conversation targets, mention tokens, coalesced DM notifications | Accepted |
 
 ---
 
@@ -401,3 +402,23 @@ ADR-007 planned explicit `subscribe` frames for the viewed server/channel and a 
 - Every connection is in roughly (servers + visible channels) groups. That is fine at this scale (100 connections: p95 fan-out 46 ms locally). A very large deployment would move to per-view subscriptions.
 - Any permission change costs one subscription recompute per connected member of that server.
 - Revoked sessions on other devices can reconnect until their access token expires (≤ 15 min), the same as REST with stateless JWTs.
+
+## ADR-025: Messaging: conversation targets, mention tokens, coalesced DM notifications
+- **Status:** Accepted
+- **Date:** 2026-10-12
+
+### Context
+Phase 5 adds DMs next to channels, plus replies, mentions, reactions, pins, attachments, search and notifications. Channels and DMs need the same features, but their permission models differ (the permission engine versus implicit participant rights plus blocking). Mentions must survive renames. A busy DM must not flood the inbox.
+
+### Decision
+- **Conversation targets.** Every message operation resolves a `Target` (`apps/messaging/targets.py`): a channel with effective permissions from the engine, or a DM whose participants hold every message permission except moderation. In a 1:1 DM where either side blocked the other, sending, reacting and attaching are denied. History, sending, reactions, pins, typing and search share this one code path. `Message` has nullable `channel`/`dm` with a check constraint.
+- **Mention tokens.** Content stores `<@user_id>`, `<@&role_id>` and `@everyone` (Discord's format). The composer turns `@username` / `@Role` into tokens on send and back for editing. Payloads include the resolved `mentions` and `mention_roles` for rendering. `@everyone` needs MENTION_EVERYONE; a role notifies only if it's mentionable or the author has MENTION_EVERYONE. Only members who can view the channel are counted or notified.
+- **Notifications.** Mentions and replies each create an inbox entry and bump the channel's `ReadState.mention_count`. DM messages bump `DMParticipant.unread_count` (DM read state lives on the participant, not on `ReadState`). Unread DM notifications are coalesced into one entry per conversation that carries a count. Mutes suppress @everyone/@role and DM notifications; direct mentions and replies still notify. Users who blocked the author get nothing.
+- **Search.** Postgres full-text search over a generated `tsvector` column (`simple` config, GIN index) with `websearch_to_tsquery`. Server search covers only channels where the user has READ_MESSAGE_HISTORY.
+- **Event order and catch-up.** `message.created` is published before the badge and notification events about it. Clients also catch up on the first gateway `ready`, not only after reconnects: read states, inbox, DM list and member presence are refetched, and loaded conversations are backfilled, because events between the initial fetches and `ready` would otherwise be lost.
+
+### Consequences
+- Channels and DMs can't drift apart feature-wise. Permission checks stay in one place per kind.
+- Renaming a user or role never breaks old messages. Tokens of departed users render as "@unknown-user".
+- The inbox stays readable for busy DMs. Unread DM badges come from participant counters, so they're one query.
+- `simple` search config means no stemming: "notes" doesn't match "note". That's acceptable for a multilingual student audience and could move to per-language configs later.

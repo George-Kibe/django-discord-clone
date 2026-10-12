@@ -167,7 +167,8 @@ def test_history_query_count(
         join(server, author)
         for i in range(10):
             send(client_for(author), channel, f"msg {i}")
-    with django_assert_max_num_queries(8):  # NFR-PERF-05: constant, independent of page size
+    # NFR-PERF-05: constant, incl. attachments, mentions, reply previews and reactions
+    with django_assert_max_num_queries(10):
         body = client_for(user).get(url(channel), {"limit": 50}).json()
     assert len(body["results"]) == 50
 
