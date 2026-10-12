@@ -1,4 +1,4 @@
-import { expect, type Browser, type Page } from "@playwright/test";
+import { expect, type Browser, type Locator, type Page } from "@playwright/test";
 
 import { signUpAndLogin } from "./helpers";
 
@@ -55,4 +55,15 @@ export function memberRow(page: Page, username: string) {
   return live(page, "member-list")
     .getByTestId("member")
     .filter({ has: page.getByText(username, { exact: true }) });
+}
+
+/**
+ * Clicks a message's hover-toolbar button. Rows can still settle right after an edit (the
+ * virtualiser re-measures asynchronously), so re-hover until the click lands.
+ */
+export async function messageAction(row: Locator, name: "Edit message" | "Delete message") {
+  await expect(async () => {
+    await row.hover();
+    await row.getByRole("button", { name }).click({ timeout: 2000 });
+  }).toPass({ timeout: 15_000 });
 }

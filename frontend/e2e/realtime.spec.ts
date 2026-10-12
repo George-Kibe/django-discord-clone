@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { live, memberRow, newUser, send, sharedServer } from "./realtime-helpers";
+import { live, memberRow, messageAction, newUser, send, sharedServer } from "./realtime-helpers";
 
 test.describe("real-time (Phase 4)", () => {
   test("messages, typing, presence and unread state are live", async ({ browser }) => {
@@ -36,16 +36,14 @@ test.describe("real-time (Phase 4)", () => {
     const mine = live(owner.page, "message").filter({ hasText: "typo here" });
     await expect(mine).toHaveAttribute("data-pending", "false");
     await expect(live(guest.page, "message-list")).toContainText("typo here");
-    await mine.hover();
-    await mine.getByRole("button", { name: "Edit message" }).click();
+    await messageAction(mine, "Edit message");
     const editor = owner.page.getByRole("textbox", { name: "Edit message" });
     await editor.fill("fixed now");
     await editor.press("Enter");
     await expect(live(guest.page, "message-list")).toContainText("fixed now");
     const fixed = live(owner.page, "message").filter({ hasText: "fixed now" });
-    await fixed.hover();
     owner.page.once("dialog", (d) => void d.accept());
-    await fixed.getByRole("button", { name: "Delete message" }).click();
+    await messageAction(fixed, "Delete message");
     await expect(live(guest.page, "message-list")).not.toContainText("fixed now");
 
     // Unread: the owner moves to a new channel; the guest posts in #general.
