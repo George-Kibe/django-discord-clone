@@ -128,10 +128,13 @@ class MemberSerializer(serializers.ModelSerializer[Member]):
     user = UserSummarySerializer(read_only=True)
     role_ids = serializers.SerializerMethodField()
     is_owner = serializers.SerializerMethodField()
+    presence = serializers.SerializerMethodField(
+        help_text="online, idle, dnd or offline (invisible users appear offline)."
+    )
 
     class Meta:
         model = Member
-        fields = ["user", "nickname", "role_ids", "is_owner", "joined_at"]
+        fields = ["user", "nickname", "role_ids", "is_owner", "joined_at", "presence"]
         read_only_fields = fields
 
     def get_role_ids(self, member: Member) -> list[str]:
@@ -139,6 +142,10 @@ class MemberSerializer(serializers.ModelSerializer[Member]):
 
     def get_is_owner(self, member: Member) -> bool:
         return member.user_id == member.server.owner_id
+
+    def get_presence(self, member: Member) -> str:
+        presence: dict[str, str] = self.context.get("presence") or {}
+        return presence.get(str(member.user_id), "offline")
 
 
 class MemberUpdateSerializer(serializers.Serializer[dict[str, Any]]):

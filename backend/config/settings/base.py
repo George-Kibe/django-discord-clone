@@ -95,6 +95,9 @@ CACHES = {
         "LOCATION": f"{REDIS_URL}/0",
     }
 }
+# Presence keys (apps/realtime/presence.py) live next to the cache.
+PRESENCE_REDIS_URL = env("PRESENCE_REDIS_URL", default=f"{REDIS_URL}/0")
+
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
@@ -231,6 +234,10 @@ CELERY_BEAT_SCHEDULE: dict[str, dict[str, Any]] = {
     "accounts.flush_expired_tokens": {
         "task": "accounts.flush_expired_tokens",
         "schedule": crontab(hour=3, minute=30),
+    },
+    "realtime.sweep_presence": {
+        "task": "realtime.sweep_presence",
+        "schedule": 30.0,
     },
     "media.cleanup_orphaned_uploads": {
         "task": "media.cleanup_orphaned_uploads",

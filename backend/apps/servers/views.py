@@ -13,6 +13,7 @@ from apps.accounts.permissions import IsEmailVerified
 from apps.accounts.utils import current_user
 from apps.core.pagination import PageNumberPagination
 from apps.core.throttling import ScopedWindowThrottle
+from apps.realtime import presence
 
 from . import services
 from .access import ServerAccess, get_access
@@ -158,7 +159,11 @@ class MemberListView(ServerScopedView):
         page: list[Member] | None = paginator.paginate_queryset(
             _members(server_id), request, view=self
         )
-        return paginator.get_paginated_response(MemberSerializer(page, many=True).data)
+        members = page or []
+        context = {"presence": presence.get_presence(m.user_id for m in members)}
+        return paginator.get_paginated_response(
+            MemberSerializer(members, many=True, context=context).data
+        )
 
 
 class MemberDetailView(ServerScopedView):
@@ -171,7 +176,10 @@ class MemberDetailView(ServerScopedView):
         serializer = MemberUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         services.update_member(access, member, serializer.validated_data)
-        return Response(MemberSerializer(_members(server_id).get(pk=member.pk)).data)
+        context = {"presence": presence.get_presence([member.user_id])}
+        return Response(
+            MemberSerializer(_members(server_id).get(pk=member.pk), context=context).data
+        )
 
 
 # ---------------------------------------------------------------------------- roles

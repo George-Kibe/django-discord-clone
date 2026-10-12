@@ -28,13 +28,19 @@ def enforce_csrf(request: Request) -> None:
         raise exceptions.PermissionDenied(_("CSRF Failed: %s") % reason, code="csrf_failed")
 
 
-def user_from_access_token(raw: str) -> User | None:
-    """Validate an access JWT and return its active user, or None."""
+def user_and_expiry_from_access_token(raw: str) -> tuple[User | None, int | None]:
+    """Validate an access JWT: (active user, expiry as a Unix timestamp) or (None, None)."""
     try:
         token = AccessToken(raw)  # type: ignore[arg-type]
     except TokenError:
-        return None
-    return User.objects.filter(pk=token.get("user_id"), is_active=True).first()
+        return None, None
+    user = User.objects.filter(pk=token.get("user_id"), is_active=True).first()
+    return (user, int(token["exp"])) if user else (None, None)
+
+
+def user_from_access_token(raw: str) -> User | None:
+    """Validate an access JWT and return its active user, or None."""
+    return user_and_expiry_from_access_token(raw)[0]
 
 
 class JWTCookieAuthentication(BaseAuthentication):

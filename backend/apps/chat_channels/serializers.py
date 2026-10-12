@@ -86,3 +86,15 @@ class OverwriteWriteSerializer(serializers.Serializer[dict[str, Any]]):
     user_id = serializers.UUIDField(required=False, allow_null=True)
     allow = serializers.IntegerField(validators=[_valid_bits])
     deny = serializers.IntegerField(validators=[_valid_bits])
+
+
+class AckSerializer(serializers.Serializer[dict[str, Any]]):
+    message_id = serializers.UUIDField()
+
+
+class ReadStateSerializer(serializers.Serializer[dict[str, Any]]):
+    channel_id = serializers.UUIDField()
+    server_id = serializers.UUIDField()
+    last_message_id = serializers.UUIDField(allow_null=True)
+    last_read_message_id = serializers.UUIDField(allow_null=True)
+    mention_count = serializers.IntegerField()

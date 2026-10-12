@@ -12,6 +12,7 @@ from rest_framework.views import APIView
 
 from apps.media import services as media
 from apps.media.tasks import delete_asset
+from apps.realtime import notify
 
 from . import services
 from .authentication import enforce_csrf, user_from_access_token
@@ -141,6 +142,9 @@ class LogoutView(AnonymousAuthView):
         services.logout(
             user=user, refresh_raw=request.COOKIES.get(REFRESH_COOKIE), request=request._request
         )
+        if user is not None:
+            # Same-browser tabs lose their cookies; other devices reconnect with their own.
+            notify.revoke_sockets(user.pk)
         response = Response(status=status.HTTP_204_NO_CONTENT)
         clear_auth_cookies(response)
         return response
@@ -225,9 +229,13 @@ class MeView(APIView):
     @extend_schema(request=MeUpdateSerializer, responses=MeSerializer, tags=USER_TAGS)
     def patch(self, request: Request) -> Response:
         user = current_user(request)
+        previous_status = user.status
         serializer = MeUpdateSerializer(user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        notify.user_updated(user.pk)
+        if user.status != previous_status:
+            notify.status_changed(user.pk, user.status)
         return Response(MeSerializer(user).data)
 
 
@@ -264,6 +272,7 @@ def _replace_avatar(user: User, public_id: str) -> None:
     old = user.avatar_public_id
     user.avatar_public_id = public_id
     user.save(update_fields=["avatar_public_id"])
+    notify.user_updated(user.pk)
     if old and old != public_id:
         delete_asset.delay(old)
 

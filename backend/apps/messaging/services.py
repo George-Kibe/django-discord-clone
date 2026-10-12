@@ -8,10 +8,18 @@ from rest_framework import exceptions
 
 from apps.accounts.models import User
 from apps.chat_channels.models import Channel
+from apps.chat_channels.services import mark_read
 from apps.core.permissions import Perm
+from apps.realtime import events
 from apps.servers.access import ServerAccess
 
 from .models import Message
+from .serializers import MessageSerializer
+
+
+def _payload(message: Message) -> dict[str, Any]:
+    return {**MessageSerializer(message).data, "server_id": str(message.channel.server_id)}
+
 
 DEFAULT_PAGE_SIZE = 50
 MAX_PAGE_SIZE = 100
@@ -63,6 +71,8 @@ def send_message(
     except IntegrityError:  # concurrent retry with the same nonce
         return Message.objects.select_related("author").get(author=author, nonce=nonce), False
     Channel.objects.filter(pk=channel.pk).update(last_message_id=message.pk)
+    mark_read(author, channel, message.pk)  # your own message is read
+    events.publish(events.channel_group(channel.pk), "message.created", _payload(message))
     return message, True
 
 
@@ -85,6 +95,7 @@ def edit_message(access: ServerAccess, message: Message, content: str) -> Messag
     message.content = content
     message.edited_at = timezone.now()
     message.save(update_fields=["content", "edited_at", "updated_at"])
+    events.publish(events.channel_group(message.channel_id), "message.updated", _payload(message))
     return message
 
 
@@ -98,3 +109,12 @@ def delete_message(access: ServerAccess, message: Message) -> None:
     message.deleted_at = timezone.now()
     message.content = ""
     message.save(update_fields=["deleted_at", "content", "updated_at"])
+    events.publish(
+        events.channel_group(message.channel_id),
+        "message.deleted",
+        {
+            "id": str(message.pk),
+            "channel_id": str(message.channel_id),
+            "server_id": str(message.channel.server_id),
+        },
+    )

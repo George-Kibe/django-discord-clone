@@ -70,3 +70,23 @@ class PermissionOverwrite(BaseModel):
 
     def __str__(self) -> str:
         return f"overwrite {self.pk}"
+
+
+class ReadState(models.Model):
+    """Where a user stopped reading a channel (FR-CH-04).
+
+    Unread means ``channel.last_message_id`` is newer than ``last_read_message_id``."""
+
+    user = models.ForeignKey("accounts.User", on_delete=models.CASCADE, related_name="read_states")
+    channel = models.ForeignKey(Channel, on_delete=models.CASCADE, related_name="read_states")
+    last_read_message_id = models.UUIDField(null=True, blank=True)
+    mention_count = models.PositiveIntegerField(default=0)  # filled by mentions in Phase 5
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "channel"], name="unique_read_state"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id} read {self.channel_id} to {self.last_read_message_id}"
