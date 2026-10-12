@@ -11,7 +11,7 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
 | 2 | Production pipeline (built & rehearsed locally) | v0.3.0 | ✅ |
 | 3 | Servers, channels & messages | v0.4.0 | ✅ |
 | 4 | Real-time | v0.5.0 | ✅ |
-| 5 | Rich messaging & DMs | v0.6.0 | ⬜ |
+| 5 | Rich messaging & DMs | v0.6.0 | ✅ |
 | 6 | Community features | v0.7.0 | ⬜ |
 | 7 | Hardening, deployment & launch | v1.0.0 | ⬜ |
 
@@ -113,17 +113,20 @@ The production pipeline (Phase 2) was built early and is rehearsed against produ
 
 **Exit criteria:** fan-out p95 < 500 ms locally under a 100-connection load script (**measured: p95 46 ms, 2000/2000 deliveries**). Killing the `api` container mid-session → clients reconnect and backfill with no lost or duplicated messages (**E2E `server-restart.spec.ts`**).
 
-## Phase 5: Rich messaging & DMs (`v0.6.0`)
+## Phase 5: Rich messaging & DMs (`v0.6.0`) ✅
 
-- [ ] Replies, mentions (@user/@role/@everyone) + notifications inbox (FR-MSG-07/08, FR-PRES-02)
-- [ ] Reactions (FR-MSG-09)
-- [ ] Attachments via Cloudinary with image previews/lightbox (FR-MSG-10)
-- [ ] Pins (FR-MSG-13)
-- [ ] 1:1 DMs, group DMs, blocking (FR-DM-01…04)
-- [ ] Browser notifications, mute settings (FR-PRES-03/04)
-- [ ] Full-text search with filters (FR-SRCH-01/02)
+- [x] Replies with quoted previews, mentions (@user/@role/@everyone) with autocomplete, highlighting, mention badges and a notifications inbox (FR-MSG-07/08, FR-PRES-02)
+- [x] Reactions: Unicode emoji, picker, live counts (FR-MSG-09)
+- [x] Attachments via signed Cloudinary uploads: images with previews and a lightbox, files as download cards, 10 MB / 5 per message, removed with the message (FR-MSG-10)
+- [x] Pins (FR-MSG-13)
+- [x] 1:1 DMs, group DMs (≤ 10 people, rename, add, leave, owner transfer), blocking (FR-DM-01…04)
+- [x] Browser notifications (opt-in, background tabs) and mute settings for servers, channels and DMs (FR-PRES-03/04)
+- [x] Full-text search with filters: from, in channel, has attachment/image/file, before/after (FR-SRCH-01/02)
+- [x] Also delivered: Settings › Notifications (desktop toggle, blocked users), people search for DMs (`/users/me/contacts`), ADR-025
+- Fixed along the way: clients now catch up on the first gateway connect (events between the initial page load and `ready` were lost); the inbox no longer double-counts when a refetch races its event; actions that navigate after a request no longer get lost when their component unmounts
+- Not in scope (Could): link previews (FR-MSG-14), threads (FR-MSG-15), email digests (FR-PRES-05)
 
-**Exit criteria:** all FR-MSG/FR-DM/FR-SRCH (M + S) have passing tests and E2E coverage of the mention → notification and DM flows.
+**Exit criteria:** all FR-MSG/FR-DM/FR-SRCH (M + S) have passing tests and E2E coverage of the mention → notification and DM flows (**met**: 373 backend tests, 97 unit tests, E2E for mentions → inbox, replies/reactions/pins, DMs and blocking, group DMs, search, real Cloudinary attachments, plus axe checks for the new UI; 26/26 on both http://localhost and http://localhost:3000).
 
 ## Phase 6: Community features (`v0.7.0`)
 

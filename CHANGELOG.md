@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-12
+
+Phase 5: rich messaging & DMs.
+
+### Added
+
+- Replies with quoted previews. Mentions (`@user`, `@role`, `@everyone`) with autocomplete, highlighted messages, mention badges and an inbox in the server rail (mentions, replies and DMs). Mentions are stored as tokens, so renames never break them (ADR-025).
+- Reactions with an emoji picker and live counts. Pins with a pinned-messages list.
+- Attachments: up to 5 files of 10 MB per message, uploaded straight to Cloudinary with progress (also by paste or drag and drop). Images show previews and open in a lightbox; other files show as download cards. Deleting a message removes its files.
+- Direct messages: 1:1 and group conversations (up to 10 people, rename, add, leave) on Home, with presence, unread badges and a "Message" button on profile cards. Blocking stops DMs both ways and collapses the blocked user's messages.
+- Full-text search per server or DM with filters for author, channel, attachments and dates.
+- Desktop notifications for background tabs (opt-in) and mute settings for servers, channels and DMs. Settings › Notifications lists blocked users.
+
+### Fixed
+
+- Real-time: events that arrived between the initial page load and the gateway's `ready` were lost. Clients now catch up on the first connect too.
+- An action that navigates after a request (opening a DM, closing a DM) could be lost if its component unmounted meanwhile.
+- Development: `make gen-api` silently used a stale schema after git checkouts (single-file bind mount). The debug toolbar no longer runs on API requests, where it caused 500s under load.
+
 ## [0.5.0] - 2026-10-12
 
 Phase 4: real-time.
@@ -123,7 +142,8 @@ Phase 0: foundations.
 
 - Original "StudyBuddy" Django/Jinja application: topics, rooms, messages, participants, activity feed, user profiles, a polls app, rooms PDF export and login/logout audit signals. This code moves to `legacy/` in Phase 0 of the rewrite.
 
-[Unreleased]: https://github.com/George-Kibe/django-discord-clone/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/George-Kibe/django-discord-clone/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/George-Kibe/django-discord-clone/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/George-Kibe/django-discord-clone/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/George-Kibe/django-discord-clone/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/George-Kibe/django-discord-clone/compare/v0.2.0...v0.3.0

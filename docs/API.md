@@ -104,7 +104,8 @@ Request and response shapes are in the OpenAPI schema. ✱ = requires a verified
 | DELETE | `/users/me` | Delete account |
 | GET | `/users/me/export` | Data export (JSON) |
 | GET | `/users/{id}` | Public profile card, incl. `mutual_servers` with the viewer |
-| GET/POST/DELETE | `/users/me/blocks[/{user_id}]` | Block list |
+| GET/POST/DELETE | `/users/me/blocks[/{user_id}]` | Block list. POST `{user_id}` (FR-DM-04) |
+| GET | `/users/me/contacts?q=` | People you share a server with (who you can DM) |
 
 ### Servers — `/api/v1/servers/`
 
@@ -143,32 +144,39 @@ Request and response shapes are in the OpenAPI schema. ✱ = requires a verified
 | PATCH | `/servers/{id}/channels/reorder` | |
 | GET/PUT | `/channels/{id}/overwrites` | List, or create/replace one: `{role_id \| user_id, allow, deny}` (MANAGE_CHANNELS + MANAGE_ROLES, hierarchy and grant rules) |
 | DELETE | `/channels/{id}/overwrites/{overwrite_id}` | Remove an overwrite |
-| POST | `/channels/{id}/ack` | `{message_id}` → mark read |
+| POST | `/channels/{id}/ack` | `{message_id}` → mark read (resets the mention count) |
+| GET | `/read-states` | Unread data for every visible channel and every DM (`mention_count` is the unread count for DMs) |
 
 ### Messages — `/api/v1/` (same shape for channels and DMs)
 
 | Method | Path | Description |
 |---|---|---|
 | GET | `/channels/{id}/messages` · `/dms/{id}/messages` | History (cursor) |
-| POST | `/channels/{id}/messages` · `/dms/{id}/messages` ✱ | Send `{content, nonce, reply_to?, attachments?: [public_id], poll?}` |
-| PATCH | `/messages/{id}` | Edit own message |
-| DELETE | `/messages/{id}` | Delete own message, or any with MANAGE_MESSAGES |
-| PUT/DELETE | `/messages/{id}/pin` | MANAGE_MESSAGES |
-| GET | `/channels/{id}/pins` | |
-| PUT/DELETE | `/messages/{id}/reactions/{emoji}` | Add/remove own reaction |
-| GET | `/messages/{id}/reactions/{emoji}` | Users who reacted |
-| POST | `/messages/{id}/report` | Report to staff |
-| GET | `/servers/{id}/messages/search` · `/dms/{id}/messages/search` | Full-text search |
+| POST | `/channels/{id}/messages` · `/dms/{id}/messages` ✱ | Send `{content, nonce, reply_to?, attachments?: [{public_id, filename}]}` (`poll` arrives in Phase 6). Content may be empty when there are attachments |
+| PATCH | `/messages/{id}` | Edit own message (mentions follow the new text; no new notifications) |
+| DELETE | `/messages/{id}` | Delete own message, or any with MANAGE_MESSAGES. Attachments are removed from Cloudinary |
+| PUT/DELETE | `/messages/{id}/pin` | MANAGE_MESSAGES in channels; any participant in DMs. Max 50 per conversation |
+| GET | `/channels/{id}/pins` · `/dms/{id}/pins` | Newest pin first |
+| PUT/DELETE | `/messages/{id}/reactions/{emoji}` | Add/remove own reaction. Unicode emoji only; max 20 different per message; a new emoji needs ADD_REACTIONS |
+| GET | `/messages/{id}/reactions/{emoji}` | Users who reacted (first 100) |
+| POST | `/messages/{id}/report` | Report to staff (Phase 6) |
+| GET | `/servers/{id}/messages/search` · `/dms/{id}/messages/search` | Full-text search: `q` (web-search syntax: words, `"phrases"`, `-exclude`), `author`, `channel`, `has=attachment\|image\|file`, `before`/`after` (dates), `cursor`, `limit`. Returns `{results, total, next_cursor}`, newest first, only channels with READ_MESSAGE_HISTORY |
+
+**Message payload** (REST and events): `id, channel_id | dm_id, author, type (default|reply|system), content, nonce, created_at, edited_at, pinned_at, reply_to {id, author, content, deleted, has_attachments} | null, attachments [{id, filename, content_type, size_bytes, width, height, is_image, url, preview_url}], reactions [{emoji, count, me}], mentions [user], mention_roles [{id, name, color}], mention_everyone`.
+
+**Mentions** are stored as tokens: `<@user_id>`, `<@&role_id>` and `@everyone` (ADR-025). Clients render them with the `mentions`/`mention_roles` lists. `@everyone` needs MENTION_EVERYONE; a role mention notifies only if the role is mentionable or the author has MENTION_EVERYONE.
 
 ### Direct messages — `/api/v1/dms/`
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/dms` | My conversations |
-| POST | `/dms` ✱ | `{user_ids: [...]}`, returns the existing 1:1 if there is one |
-| PATCH | `/dms/{id}` | Rename group, close |
-| POST/DELETE | `/dms/{id}/participants[/{user_id}]` | Group management |
-| POST | `/dms/{id}/ack` | Mark read |
+| GET | `/dms` | My open conversations, most recent first: `{id, is_group, name, owner_id, last_message_id, recipients [user + presence], last_read_message_id, unread_count}` |
+| GET | `/dms/{id}` | One conversation (participants only, else 404) |
+| POST | `/dms` ✱ | `{user_ids, name?}`: one user opens (or reopens) the 1:1 (`200` if it exists, `201` if new); more create a group (≤ 10 people). Everyone must share a server with you and not be blocked either way |
+| PATCH | `/dms/{id}` | `{name}` (groups, any participant) and/or `{closed}` (hide from your sidebar; a new message reopens it) |
+| POST | `/dms/{id}/participants` | `{user_ids}` add to a group |
+| DELETE | `/dms/{id}/participants/{user_id}` | Leave (yourself) or remove (owner). Ownership passes on; the last one out deletes the group |
+| POST | `/dms/{id}/ack` | `{message_id}` → mark read; also marks its DM notification read |
 
 ### Polls — `/api/v1/polls/`
 
@@ -183,10 +191,10 @@ Request and response shapes are in the OpenAPI schema. ✱ = requires a verified
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/notifications` | Inbox (cursor) |
+| GET | `/notifications` | Inbox, newest first: `{results, unread_count, next_cursor}` (`?unread=true&cursor=&limit=`). Types: `mention`, `reply`, `dm` (one entry per conversation while unread, with `data.count`) |
 | POST | `/notifications/read` | `{ids}` or `{all: true}` |
-| GET/PUT | `/mute-settings` | |
-| POST | `/media/sign` | Signed Cloudinary upload params |
+| GET/PUT | `/mute-settings` | PUT `{target_type: server\|channel\|dm, target_id, muted, muted_until?}`. Muted targets skip @everyone/@role and DM notifications; direct @mentions and replies still notify |
+| POST | `/media/sign` | Signed Cloudinary upload params. `purpose=attachment` takes images (`image` resources with previews) and files like pdf, txt, zip, docx (`raw`), up to 10 MB |
 | POST | `/exports` | Start PDF export → `202` |
 | GET | `/exports/{id}` | Status + short-lived download URL when done |
 | GET | `/health/live` · `/health/ready` | Health checks (unauthenticated, outside `/v1`) |
@@ -227,7 +235,7 @@ Subscriptions are automatic (ADR-024). A connection receives events for the user
 |---|---|---|
 | `presence.heartbeat` | `{}` | Every `heartbeat_interval` ms (30 s). The response is `{}` |
 | `presence.set` | `{status}` | `online` / `idle` / `dnd` / `invisible`. Saved to the profile. The response echoes the status |
-| `typing.start` | `{channel_id}` | Needs Send Messages (otherwise an `error` frame with `{code: "forbidden"}`). The server drops repeats within 2 s; clients send at most one every 5 s while typing |
+| `typing.start` | `{channel_id}` or `{dm_id}` | Needs Send Messages (otherwise an `error` frame with `{code: "forbidden"}`). The server drops repeats within 2 s; clients send at most one every 5 s while typing |
 
 A client may send up to 60 frames per 10 s. More closes the connection with `4429`. Unknown or malformed frames close it with `4400`.
 
@@ -253,12 +261,19 @@ Structural events carry ids only. Clients refetch the resource over REST.
 | `member.joined` / `member.updated` / `member.left` | server | `{server_id, user_id}` |
 | `user.updated` | server | `{server_id, user_id}` (name or avatar changed) |
 | `presence.updated` | server | `{user_id, status, version, server_id}`. `status` is `online`/`idle`/`dnd`/`offline` (invisible users appear offline). Ignore events with a lower `version` than the last one seen for that user |
-| `read_state.updated` | user | `{channel_id, server_id, last_read_message_id, mention_count}` (syncs across tabs) |
+| `read_state.updated` | user | `{channel_id \| dm_id, server_id, last_read_message_id, mention_count}` (syncs across tabs; for DMs the count is unread messages) |
+| `reaction.added` / `reaction.removed` | channel / dm | `{message_id, emoji, user_id, count, channel_id, dm_id, server_id}` |
+| `pins.updated` | channel / dm | `{channel_id, dm_id, server_id}`: refetch the pins list |
+| `notification.created` / `notification.updated` | user | Notification (`updated`: a coalesced DM entry with a new count) |
+| `notification.read` | user | `{ids}` (syncs other tabs) |
+| `mute_settings.updated` | user | `{}` |
+| `dm.created` / `dm.updated` | user | `{dm_id}`: refetch the conversation list |
+| `dm.removed` | user | `{dm_id}`: you left or were removed |
 | `server.joined` | user | `{server_id}`: you joined or created it; your connection is now subscribed |
 | `server.access_changed` | user | `{server_id}`: your permissions or visible channels there changed |
 | `server.removed` | user | `{server_id}`: you left, were removed, or the server was deleted |
 
-Planned for later phases: `reaction.*`, `poll.updated`, `notification.created`, `dm.*`, `export.*`.
+Message events (`message.*`) are sent to `channel.{id}` or `dm.{id}` and carry `channel_id`, `dm_id` and `server_id`. `typing.started` carries `channel_id` or `dm_id`. Planned for later phases: `poll.updated`, `export.*`.
 
 ### Close codes
 
@@ -278,5 +293,6 @@ Planned for later phases: `reaction.*`, `poll.updated`, `notification.created`, 
 | `user.{user_id}` | Every connection of that user |
 | `server.{server_id}` | Connections of every member of that server |
 | `channel.{channel_id}` | Connections of every member who can view that channel |
+| `dm.{dm_id}` | Connections of every participant |
 
 When permissions change (role edit, overwrite, removal), the consumers recompute their channel groups and send `server.access_changed` or `server.removed` to the affected users (ADR-024).

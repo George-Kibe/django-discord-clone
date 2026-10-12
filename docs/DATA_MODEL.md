@@ -134,7 +134,7 @@ Email verification and password reset tokens are stateless signed tokens (Django
 
 ### ReadState
 
-`user, channel (nullable), dm (nullable), last_read_message_id, mention_count`. Exactly one of `channel`/`dm` is set. Unique per target.
+`user, channel, last_read_message_id, mention_count, updated_at`. Unique `(user, channel)`. DM read state lives on `DMParticipant` (ADR-025).
 
 ## messaging
 
@@ -144,7 +144,7 @@ Email verification and password reset tokens are stateless signed tokens (Django
 
 ### DMParticipant
 
-`conversation, user, joined_at, closed (bool, hidden from the sidebar)`. Unique `(conversation, user)`. For 1:1 DMs a `dm_key` (sorted user IDs) on the conversation has a unique constraint so a pair can never get duplicate conversations.
+`conversation, user, joined_at, closed (bool, hidden from the sidebar), last_read_message_id, unread_count`. Unique `(conversation, user)`. For 1:1 DMs a `dm_key` (sorted user IDs) on the conversation has a unique constraint so a pair can never get duplicate conversations.
 
 ### Message
 
@@ -154,8 +154,8 @@ Email verification and password reset tokens are stateless signed tokens (Django
 | channel | FK Channel | nullable |
 | dm | FK DMConversation | nullable. Check constraint: exactly one of `channel`/`dm` |
 | author | FK User | `SET_NULL`, nullable (shown as "Deleted User") |
-| type | enum | `default`, `reply`, `poll`, `system` (join/leave/pin notices) |
-| content | text | ≤ 4000 chars |
+| type | enum | `default`, `reply`, `system` (`poll` arrives in Phase 6) |
+| content | text | ≤ 4000 chars. May be empty when the message has attachments. Mentions are tokens: `<@user_id>`, `<@&role_id>`, `@everyone` |
 | reply_to | FK self | nullable, `SET_NULL` |
 | nonce | varchar(64) | client idempotency key. Unique `(author, nonce)` where not null |
 | edited_at | timestamptz | nullable |
@@ -168,15 +168,15 @@ Indexes: `(channel, id DESC)`, `(dm, id DESC)` (history pagination); `(author, i
 
 ### Attachment
 
-`id, message (FK, CASCADE), public_id, resource_type (image|raw|video), filename, content_type, size_bytes, width, height`. Max 5 per message, enforced in the service layer.
+`id, message (FK, CASCADE), public_id (unique), resource_type (image|raw), filename (original, sanitised), content_type, size_bytes, width, height`. Max 5 per message, enforced in the service layer. Raw files keep their extension in `public_id`.
 
 ### Reaction
 
-`message, user, emoji (varchar(32), Unicode)`. Unique `(message, user, emoji)`. Counts are aggregated per `(message, emoji)` in selectors.
+`message, user, emoji (varchar(32), Unicode), created_at`. Unique `(message, user, emoji)`. Counts are aggregated per `(message, emoji)` in selectors, in first-use order. Max 20 different emoji per message.
 
 ### Mention
 
-`message, user (nullable), role (nullable)`. Used to build notifications and mention counts.
+`message, user (nullable), role (nullable)`. Exactly one is set. Rebuilt when a message is edited. Used to build notifications and mention counts.
 
 ### PendingUpload
 
@@ -200,11 +200,11 @@ Indexes: `(channel, id DESC)`, `(dm, id DESC)` (history pagination); `(author, i
 
 ### Notification
 
-`id, user, type (mention|reply|dm|export_ready|invite_accepted|system), message (nullable FK), actor (nullable FK User), data (jsonb), read_at (nullable), created_at`. Indexed `(user, read_at, created_at DESC)`.
+`id, user, type (mention|reply|dm; export_ready and others later), message (nullable FK), actor (nullable FK User), data (jsonb: where it happened, a content preview, `count` for DMs), read_at (nullable), created_at`. Indexed `(user, read_at, id DESC)`. Unread DM notifications are coalesced: one per conversation.
 
 ### MuteSetting
 
-`user, server (nullable), channel (nullable), dm (nullable), muted_until (nullable = forever)`.
+`user, server (nullable), channel (nullable), dm (nullable), muted_until (nullable = until unmuted)`. Exactly one target; unique per user and target.
 
 ## exports
 
