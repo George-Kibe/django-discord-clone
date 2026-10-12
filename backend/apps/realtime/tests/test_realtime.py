@@ -556,3 +556,43 @@ async def test_reactions_pins_and_mentions_are_live(setup):
     assert (await member.event("message.updated"))["pinned_at"]
     assert (await member.event("pins.updated"))["channel_id"] == str(channel.pk)
     await member.close()
+
+
+# ---------------------------------------------------------------------------- Phase 6
+
+
+async def test_poll_results_are_live(setup):
+    member = await open_socket(setup["member"])
+    channel = setup["channel"]
+    message = await arest(
+        setup["owner"],
+        "post",
+        reverse("channel-messages", args=[channel.pk]),
+        {"content": "", "poll": {"question": "Lunch?", "options": ["Pizza", "Salad"]}},
+    )
+    poll = message["poll"]
+    pizza = poll["options"][0]["id"]
+    await arest(
+        setup["owner"], "put", reverse("poll-votes", args=[poll["id"]]), {"option_ids": [pizza]}
+    )
+    update = await member.event("poll.updated")
+    assert update["message_id"] == message["id"]
+    assert update["poll"]["options"][0]["votes"] == 1
+    assert update["voter_id"] == str(setup["owner"].pk) and update["voter_option_ids"] == [pizza]
+    assert "my_votes" not in update["poll"]
+    await arest(setup["owner"], "post", reverse("poll-close", args=[poll["id"]]))
+    assert (await member.event("poll.updated"))["poll"]["closed_at"]
+    await member.close()
+
+
+async def test_kicked_member_loses_the_server_live(setup):
+    member = await open_socket(setup["member"])
+    server_id = str(setup["server"].pk)
+    await arest(
+        setup["owner"],
+        "post",
+        reverse("server-member-kick", args=[server_id, setup["member"].pk]),
+        {},
+    )
+    assert (await member.event("server.removed"))["server_id"] == server_id
+    await member.close()

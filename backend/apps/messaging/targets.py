@@ -122,3 +122,21 @@ def message_target(user: User, message: Message) -> Target:
 
 def message_scope_q(target: Target) -> Q:
     return Q(**{target.kind: target.id})
+
+
+def message_scope(message: Message) -> tuple[dict[str, Any], str]:
+    """Event scope and group of a message, without a viewer."""
+    if message.channel_id is not None:
+        server_id = (
+            Channel.objects.filter(pk=message.channel_id)
+            .values_list("server_id", flat=True)
+            .first()
+        )
+        return (
+            {"channel_id": str(message.channel_id), "dm_id": None, "server_id": str(server_id)},
+            events.channel_group(message.channel_id),
+        )
+    return (
+        {"channel_id": None, "dm_id": str(message.dm_id), "server_id": None},
+        events.dm_group(message.dm_id),
+    )

@@ -30,6 +30,7 @@ const message = (id: string, extra: Record<string, unknown> = {}) => ({
   mentions: [],
   mention_roles: [],
   mention_everyone: false,
+  poll: null,
   ...extra,
 });
 
@@ -315,20 +316,21 @@ describe("summarize with DMs and mutes", () => {
 });
 
 describe("resync", () => {
-  it("first connect refreshes only live data; reconnects refresh everything", async () => {
+  it("refreshes everything except messages, which are backfilled", async () => {
     const queryClient = new QueryClient();
-    for (const key of [["read-states"], ["notifications"], ["dms"], ["servers"], ["me"]])
+    for (const key of [["read-states"], ["servers", "s1", "channels"], ["me"]])
       queryClient.setQueryData(key, []);
-    queryClient.setQueryData(["servers", "s1", "members"], []);
-    const stale = () =>
-      queryClient
-        .getQueryCache()
-        .findAll({ predicate: (q) => q.state.isInvalidated })
-        .map((q) => q.queryKey.join("/"))
-        .sort();
-    await resync(queryClient, { full: false });
-    expect(stale()).toEqual(["dms", "notifications", "read-states", "servers/s1/members"]);
-    await resync(queryClient, { full: true });
-    expect(stale()).toContain("me");
+    queryClient.setQueryData(messageKeys.channel("c1"), {
+      pages: [{ results: [], has_more: false }],
+      pageParams: [null],
+    });
+    await resync(queryClient);
+    const stale = queryClient
+      .getQueryCache()
+      .findAll({ predicate: (q) => q.state.isInvalidated })
+      .map((q) => q.queryKey.join("/"))
+      .sort();
+    // Messages are never invalidated (a stale refetch could drop messages sent meanwhile).
+    expect(stale).toEqual(["me", "read-states", "servers/s1/channels"]);
   });
 });

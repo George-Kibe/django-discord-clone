@@ -1,8 +1,8 @@
 from typing import Any
 from uuid import UUID
 
-from django.db.models import Prefetch
-from drf_spectacular.utils import extend_schema
+from django.db.models import Prefetch, Q
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
@@ -12,18 +12,25 @@ from rest_framework.views import APIView
 from apps.accounts.permissions import IsEmailVerified
 from apps.accounts.utils import current_user
 from apps.core.pagination import PageNumberPagination
+from apps.core.permissions import Perm
 from apps.core.throttling import ScopedWindowThrottle
 from apps.realtime import presence
 
 from . import services
 from .access import ServerAccess, get_access
-from .models import Invite, Member, Role, Server, Topic
+from .models import Ban, Invite, Member, Role, Server, ServerAuditEvent, Topic
 from .serializers import (
+    AuditEventSerializer,
+    AuditPageSerializer,
+    BanCreateSerializer,
+    BanSerializer,
+    DiscoverServerSerializer,
     InviteCreateSerializer,
     InvitePreviewSerializer,
     InviteSerializer,
     MemberSerializer,
     MemberUpdateSerializer,
+    ReasonSerializer,
     RoleReorderSerializer,
     RoleSerializer,
     ServerCreateSerializer,
@@ -286,3 +293,101 @@ class AcceptInviteView(APIView):
         user = current_user(request)
         server = services.accept_invite(code, user)
         return Response(_detail(get_access(user, server)))
+
+
+# ---------------------------------------------------------------------------- moderation (FR-MOD)
+
+
+class KickView(ServerScopedView):
+    @extend_schema(request=ReasonSerializer, responses={204: None}, tags=TAGS, summary="Kick")
+    def post(self, request: Request, server_id: UUID, user_id: UUID) -> Response:
+        serializer = ReasonSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.kick(self.access(request, server_id), user_id, **serializer.validated_data)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class BanListView(ServerScopedView):
+    @extend_schema(responses=BanSerializer(many=True), tags=TAGS)
+    def get(self, request: Request, server_id: UUID) -> Response:
+        access = self.access(request, server_id)
+        access.require(Perm.BAN_MEMBERS)
+        bans = Ban.objects.filter(server=access.server).select_related("user", "moderator")
+        return Response(BanSerializer(bans, many=True).data)
+
+    @extend_schema(request=BanCreateSerializer, responses={201: BanSerializer}, tags=TAGS)
+    def post(self, request: Request, server_id: UUID) -> Response:
+        serializer = BanCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        row = services.ban(self.access(request, server_id), **serializer.validated_data)
+        return Response(BanSerializer(row).data, status=status.HTTP_201_CREATED)
+
+
+class BanDetailView(ServerScopedView):
+    @extend_schema(responses={204: None}, tags=TAGS, summary="Unban")
+    def delete(self, request: Request, server_id: UUID, user_id: UUID) -> Response:
+        services.unban(self.access(request, server_id), user_id)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AuditLogView(ServerScopedView):
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("cursor", int, description="`next_cursor` from the last page"),
+            OpenApiParameter("action", str, description="Filter by action"),
+        ],
+        responses=AuditPageSerializer,
+        tags=TAGS,
+    )
+    def get(self, request: Request, server_id: UUID) -> Response:
+        access = self.access(request, server_id)
+        access.require(Perm.VIEW_AUDIT_LOG)
+        qs = ServerAuditEvent.objects.filter(server=access.server).select_related("actor")
+        if action := request.query_params.get("action"):
+            qs = qs.filter(action=action)
+        cursor = request.query_params.get("cursor")
+        if cursor and cursor.isdigit():
+            qs = qs.filter(id__lt=int(cursor))
+        rows = list(qs.order_by("-id")[:51])
+        page = rows[:50]
+        return Response(
+            {
+                "results": AuditEventSerializer(page, many=True).data,
+                "next_cursor": page[-1].pk if len(rows) > 50 else None,
+            }
+        )
+
+
+class DiscoverView(APIView):
+    """FR-SRV-08: public servers, searchable by name/description, filterable by topic."""
+
+    pagination_class = PageNumberPagination
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("q", str, description="Name or description"),
+            OpenApiParameter("topic", str, description="Topic slug"),
+            OpenApiParameter("page", int),
+        ],
+        responses=DiscoverServerSerializer(many=True),
+        tags=TAGS,
+    )
+    def get(self, request: Request) -> Response:
+        qs = Server.objects.filter(is_public=True).select_related("topic")
+        if q := request.query_params.get("q", "").strip()[:100]:
+            qs = qs.filter(Q(name__icontains=q) | Q(description__icontains=q))
+        if topic := request.query_params.get("topic"):
+            qs = qs.filter(topic__slug=topic)
+        qs = qs.order_by("-member_count", "name")
+        paginator = PageNumberPagination()
+        paginator.page_size = 24
+        page: list[Server] | None = paginator.paginate_queryset(qs, request, view=self)
+        servers = page or []
+        joined = set(
+            Member.objects.filter(
+                user=current_user(request), server_id__in=[s.pk for s in servers]
+            ).values_list("server_id", flat=True)
+        )
+        return paginator.get_paginated_response(
+            DiscoverServerSerializer(servers, many=True, context={"joined": joined}).data
+        )

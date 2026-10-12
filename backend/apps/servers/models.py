@@ -117,3 +117,63 @@ class Invite(models.Model):
         if self.expires_at is not None and self.expires_at <= timezone.now():
             return False
         return self.max_uses is None or self.uses < self.max_uses
+
+
+class Ban(models.Model):
+    """A banned user can't rejoin (invites, public join) until unbanned (FR-MOD-01)."""
+
+    server = models.ForeignKey(Server, on_delete=models.CASCADE, related_name="bans")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="server_bans"
+    )
+    moderator = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    reason = models.CharField(max_length=512, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [models.UniqueConstraint(fields=["server", "user"], name="unique_ban")]
+
+    def __str__(self) -> str:
+        return f"{self.user_id} banned from {self.server_id}"
+
+
+class ServerAuditEvent(models.Model):
+    """Moderation and configuration history of a server (FR-MOD-02)."""
+
+    class Action(models.TextChoices):
+        SERVER_UPDATE = "server.update", "Server updated"
+        MEMBER_KICK = "member.kick", "Member kicked"
+        MEMBER_BAN = "member.ban", "Member banned"
+        MEMBER_UNBAN = "member.unban", "Member unbanned"
+        MEMBER_UPDATE = "member.update", "Member roles or nickname changed"
+        ROLE_CREATE = "role.create", "Role created"
+        ROLE_UPDATE = "role.update", "Role updated"
+        ROLE_DELETE = "role.delete", "Role deleted"
+        CHANNEL_CREATE = "channel.create", "Channel created"
+        CHANNEL_UPDATE = "channel.update", "Channel updated"
+        CHANNEL_DELETE = "channel.delete", "Channel deleted"
+        OVERWRITE_UPDATE = "overwrite.update", "Channel permissions changed"
+        MESSAGE_DELETE = "message.delete", "Message deleted by a moderator"
+        INVITE_CREATE = "invite.create", "Invite created"
+        INVITE_REVOKE = "invite.revoke", "Invite revoked"
+
+    server = models.ForeignKey(Server, on_delete=models.CASCADE, related_name="audit_events")
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    action = models.CharField(max_length=32, choices=Action.choices)
+    target_type = models.CharField(max_length=16, blank=True)  # user | role | channel | message
+    target_id = models.CharField(max_length=64, blank=True)
+    target_label = models.CharField(max_length=200, blank=True)  # name at the time
+    changes = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-id"]
+        indexes = [models.Index(fields=["server", "-id"], name="audit_server_recent")]
+
+    def __str__(self) -> str:
+        return f"{self.action} in {self.server_id}"

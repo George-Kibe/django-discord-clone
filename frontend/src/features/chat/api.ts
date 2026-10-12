@@ -108,6 +108,21 @@ export function mergeNewest(data: Pages | undefined, incoming: ChatMessage[]): P
   return { ...data, pages: [{ ...first, results: [...fresh, ...kept] }, ...rest] };
 }
 
+/** History fetched for a conversation we had nothing for (newest first), merged behind any
+ * messages still being sent. */
+export function mergeHistory(data: Pages | undefined, history: ChatMessage[]): Pages | undefined {
+  if (!data) return data;
+  const [first, ...rest] = data.pages;
+  const known = new Set(data.pages.flatMap((p) => p.results.map((m) => m.id)));
+  const pending = first.results.filter((m) => m.pending);
+  const settled = [
+    ...first.results.filter((m) => !m.pending),
+    ...history.filter((m) => !known.has(m.id)),
+  ];
+  settled.sort((a, b) => (a.id < b.id ? 1 : -1)); // UUIDv7: newest first
+  return { ...data, pages: [{ ...first, results: [...pending, ...settled] }, ...rest] };
+}
+
 function mapMessages(
   data: Pages | undefined,
   fn: (m: ChatMessage) => ChatMessage | null,
@@ -178,8 +193,10 @@ export async function backfill(queryClient: QueryClient, c: Conversation) {
   for (let page = 0; page < BACKFILL_PAGES; page++) {
     const after = newestRealId(queryClient.getQueryData<Pages>(key));
     if (!after) {
-      // Nothing loaded yet (an empty conversation): just fetch it again.
-      await queryClient.invalidateQueries({ queryKey: key, exact: true });
+      // Nothing loaded yet (an empty conversation): merge the newest page. Never refetch the
+      // query wholesale: a stale response would overwrite messages sent meanwhile.
+      const newest = await fetchPage(c, { limit: PAGE_SIZE });
+      queryClient.setQueryData<Pages>(key, (old) => mergeHistory(old, newest.results));
       return;
     }
     const data = await fetchPage(c, { after, limit: 100 });
@@ -208,11 +225,19 @@ export type UploadedAttachment = {
   localUrl: string | null;
 };
 
+export type PollInput = {
+  question: string;
+  options: string[];
+  allow_multiple: boolean;
+  duration_minutes: number | null;
+};
+
 export type SendInput = {
   content: string;
   nonce: string;
   replyTo?: ChatMessage | null;
   attachments?: UploadedAttachment[];
+  poll?: PollInput | null;
 };
 
 export function replyPreview(message: ChatMessage): ReplyPreview {
@@ -231,10 +256,11 @@ export function useSendMessage(c: Conversation, author: Message["author"]) {
   const key = messageKeys.of(c);
 
   return useMutation({
-    mutationFn: async ({ content, nonce, replyTo, attachments }: SendInput) => {
+    mutationFn: async ({ content, nonce, replyTo, attachments, poll }: SendInput) => {
       const body = {
         content,
         nonce,
+        poll: poll ?? null,
         reply_to: replyTo?.id ?? null,
         attachments:
           attachments?.map((a) => ({ public_id: a.publicId, filename: a.filename })) ?? [],
@@ -252,13 +278,13 @@ export function useSendMessage(c: Conversation, author: Message["author"]) {
       if (!data) throw new Error("Empty response");
       return data as ChatMessage;
     },
-    onMutate: ({ content, nonce, replyTo, attachments = [] }) => {
+    onMutate: ({ content, nonce, replyTo, attachments = [], poll }) => {
       const optimistic: ChatMessage = {
         id: `pending-${nonce}`,
         channel_id: c.kind === "channel" ? c.id : null,
         dm_id: c.kind === "dm" ? c.id : null,
         author,
-        type: replyTo ? "reply" : "default",
+        type: poll ? "poll" : replyTo ? "reply" : "default",
         content,
         nonce,
         created_at: new Date().toISOString(),
@@ -280,6 +306,18 @@ export function useSendMessage(c: Conversation, author: Message["author"]) {
         mentions: [],
         mention_roles: [],
         mention_everyone: false,
+        poll: poll
+          ? {
+              id: `pending-${nonce}`,
+              question: poll.question,
+              allow_multiple: poll.allow_multiple,
+              closes_at: null,
+              closed_at: null,
+              options: poll.options.map((text, i) => ({ id: -1 - i, text, votes: 0 })),
+              total_voters: 0,
+              my_votes: [],
+            }
+          : null,
         pending: true,
       };
       queryClient.setQueryData<Pages>(key, (old) =>

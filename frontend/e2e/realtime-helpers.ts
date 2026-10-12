@@ -65,7 +65,13 @@ export function memberRow(page: Page, username: string) {
 export async function messageAction(
   row: Locator,
   name:
-    "Edit message" | "Delete message" | "Reply" | "Add reaction" | "Pin message" | "Unpin message",
+    | "Edit message"
+    | "Delete message"
+    | "Reply"
+    | "Add reaction"
+    | "Pin message"
+    | "Unpin message"
+    | "Report message",
 ) {
   await expect(async () => {
     await row.hover();

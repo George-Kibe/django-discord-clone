@@ -2,6 +2,7 @@ import type { components } from "@/types/api";
 
 type Message = components["schemas"]["Message"];
 type Notification = components["schemas"]["Notification"];
+type PollSummary = components["schemas"]["PollSummary"];
 
 /** Identifies the conversation of a message event: a channel (with its server) or a DM. */
 type Scope = { channel_id: string | null; dm_id: string | null; server_id: string | null };
@@ -22,6 +23,14 @@ export type GatewayEvents = {
   "reaction.added": { message_id: string; emoji: string; user_id: string; count: number } & Scope;
   "reaction.removed": { message_id: string; emoji: string; user_id: string; count: number } & Scope;
   "pins.updated": Scope;
+  "poll.updated": {
+    message_id: string;
+    poll: Omit<PollSummary, "my_votes">;
+    voter_id: string | null;
+    voter_option_ids: number[] | null;
+  } & Scope;
+  "export.ready": { export_id: string };
+  "export.failed": { export_id: string };
   "notification.created": Notification;
   "notification.updated": Notification;
   "notification.read": { ids: string[] };

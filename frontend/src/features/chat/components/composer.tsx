@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, Loader2, Paperclip, X } from "lucide-react";
+import { BarChart3, FileText, Loader2, Paperclip, X } from "lucide-react";
 import {
   useEffect,
   useId,
@@ -19,7 +19,9 @@ import { ApiError } from "@/lib/api/errors";
 import { MAX_ATTACHMENT_BYTES, MAX_ATTACHMENTS, uploadAttachment } from "@/lib/media/upload";
 import { cn } from "@/lib/utils";
 
-import type { ChatMessage, UploadedAttachment } from "../api";
+import { PollDialog } from "@/features/polls/components/poll-dialog";
+
+import type { ChatMessage, PollInput, UploadedAttachment } from "../api";
 import { encodeMentions, mentionQuery, type Mentionables } from "../mentions";
 import { formatBytes } from "./attachments";
 import { EmojiPicker } from "./emoji-picker";
@@ -99,6 +101,8 @@ export function Composer({
   onCancelReply,
   onSend,
   onTyping,
+  canCreatePolls = false,
+  onSendPoll,
 }: {
   /** "#general" or "@ana": used in the placeholder and label. */
   label: string;
@@ -110,7 +114,10 @@ export function Composer({
   onCancelReply: () => void;
   onSend: (content: string, attachments: UploadedAttachment[]) => void;
   onTyping?: () => void;
+  canCreatePolls?: boolean;
+  onSendPoll?: (poll: PollInput) => void;
 }) {
+  const [polling, setPolling] = useState(false);
   const [value, setValue] = useState("");
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [caret, setCaret] = useState(0);
@@ -434,6 +441,17 @@ export function Composer({
                 aria-label="Uploading"
               />
             ) : null}
+            {canCreatePolls && onSendPoll ? (
+              <button
+                type="button"
+                onClick={() => setPolling(true)}
+                aria-label="Create poll"
+                className="flex size-8 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
+                data-testid="create-poll"
+              >
+                <BarChart3 className="size-4" aria-hidden />
+              </button>
+            ) : null}
             <EmojiPicker
               label="Insert emoji"
               onPick={(emoji) => {
@@ -446,6 +464,9 @@ export function Composer({
           </div>
         ) : null}
       </div>
+      {onSendPoll ? (
+        <PollDialog open={polling} onOpenChange={setPolling} onCreate={onSendPoll} />
+      ) : null}
       {value.length > MAX - 200 ? (
         <p className="mt-1 text-right text-xs text-muted-foreground" aria-live="polite">
           {value.length}/{MAX}

@@ -312,14 +312,40 @@ def test_refresh_token_reuse_revokes_all_sessions(auth_client, user, settings):
     assert other_device.post(reverse("auth-refresh")).status_code == 401
 
 
-def test_concurrent_refresh_within_grace_window_is_not_treated_as_theft(auth_client, user):
+def test_just_rotated_token_is_accepted_within_grace_window(auth_client, user):
+    """A second tab (or a reload that lost the response) presents the token that was just
+    rotated: it gets a fresh pair instead of being signed out."""
     first = auth_client.cookies[REFRESH_COOKIE].value
     auth_client.post(reverse("auth-refresh"))
     second_tab = APIClient()
     second_tab.cookies[REFRESH_COOKIE] = first
-    assert second_tab.post(reverse("auth-refresh")).status_code == 401
+    response = second_tab.post(reverse("auth-refresh"))
+    assert response.status_code == 200
+    assert response.cookies[REFRESH_COOKIE].value not in ("", first)
     assert events(user, "token_refresh_reuse").count() == 0
     assert auth_client.post(reverse("auth-refresh")).status_code == 200
+
+
+def test_revocation_beats_the_rotation_grace(auth_client, user):
+    first = auth_client.cookies[REFRESH_COOKIE].value
+    auth_client.post(reverse("auth-refresh"))
+    response = auth_client.post(
+        reverse("auth-password-change"),
+        {"current_password": PASSWORD, "new_password": "brand-new-passphrase-1"},
+        format="json",
+    )
+    assert response.status_code == 200
+    stale = APIClient()
+    stale.cookies[REFRESH_COOKIE] = first
+    assert stale.post(reverse("auth-refresh")).status_code == 401
+
+
+def test_logged_out_token_gets_no_grace(auth_client, user):
+    token = auth_client.cookies[REFRESH_COOKIE].value
+    auth_client.post(reverse("auth-logout"))
+    replay = APIClient()
+    replay.cookies[REFRESH_COOKIE] = token
+    assert replay.post(reverse("auth-refresh")).status_code == 401
 
 
 def test_refresh_for_deactivated_user_fails(auth_client, user):

@@ -49,6 +49,8 @@ LOCAL_APPS = [
     "apps.chat_channels",
     "apps.messaging",
     "apps.notifications",
+    "apps.polls",
+    "apps.exports",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
@@ -243,6 +245,8 @@ CELERY_BEAT_SCHEDULE: dict[str, dict[str, Any]] = {
         "task": "realtime.sweep_presence",
         "schedule": 30.0,
     },
+    "polls.close_due": {"task": "polls.close_due", "schedule": 60.0},
+    "exports.delete_expired": {"task": "exports.delete_expired", "schedule": crontab(minute=15)},
     "media.cleanup_orphaned_uploads": {
         "task": "media.cleanup_orphaned_uploads",
         "schedule": crontab(hour=3, minute=40),
@@ -279,6 +283,12 @@ MEDIA_UPLOAD_RULES: dict[str, dict[str, Any]] = {
     },
 }
 PENDING_UPLOAD_TTL_HOURS = 24
+
+# PDF transcript exports (FR-EXP): a volume shared by api and worker, files kept 24 h.
+EXPORT_ROOT = env("EXPORT_ROOT", default="/data/exports")
+EXPORT_TTL_HOURS = 24
+EXPORT_LINK_MAX_AGE = 15 * 60  # seconds a signed download link stays valid
+EXPORT_MAX_MESSAGES = 20_000
 
 # Django 6.1 replaces the EMAIL_* settings with MAILERS (apps/core/mail.py builds them).
 # EMAIL_URL (e.g. smtp+tls://user:pass@host:587) wins; otherwise SENDER_EMAIL + EMAIL_PASSWORD

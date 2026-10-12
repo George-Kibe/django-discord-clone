@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api/client";
 import { applyFieldErrors } from "@/lib/api/errors";
+import { useHydrated } from "@/lib/use-hydrated";
+import { cn } from "@/lib/utils";
 
 import { forgotPasswordSchema, type ForgotPasswordValues } from "../schemas";
 
@@ -19,6 +21,7 @@ export function ForgotPasswordForm() {
     resolver: zodResolver(forgotPasswordSchema),
     defaultValues: { email: "" },
   });
+  const hydrated = useHydrated();
   const { errors, isSubmitting } = form.formState;
 
   async function onSubmit(values: ForgotPasswordValues) {
@@ -40,7 +43,7 @@ export function ForgotPasswordForm() {
     );
   }
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="grid gap-4">
+    <form method="post" onSubmit={form.handleSubmit(onSubmit)} noValidate className="grid gap-4">
       {formError ? <FormMessage tone="error">{formError}</FormMessage> : null}
       <FormField label="Email" error={errors.email?.message}>
         {(field) => (
@@ -53,7 +56,12 @@ export function ForgotPasswordForm() {
           />
         )}
       </FormField>
-      <Button type="submit" disabled={isSubmitting} className="w-full">
+      <Button
+        type="submit"
+        disabled={isSubmitting || !hydrated}
+        // Before hydration it ignores clicks (no native submit) without looking disabled.
+        className={cn("w-full", !hydrated && "disabled:opacity-100")}
+      >
         {isSubmitting ? "Sending…" : "Send reset link"}
       </Button>
     </form>

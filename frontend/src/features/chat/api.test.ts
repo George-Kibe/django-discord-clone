@@ -27,6 +27,7 @@ const msg = (id: string, extra: Partial<ChatMessage> = {}): ChatMessage => ({
   mentions: [],
   mention_roles: [],
   mention_everyone: false,
+  poll: null,
   ...extra,
 });
 
@@ -94,5 +95,26 @@ describe("conversations", () => {
       "d1",
       "messages",
     ]);
+  });
+});
+
+describe("backfill", () => {
+  it("merges into an empty conversation instead of replacing it", async () => {
+    const { QueryClient } = await import("@tanstack/react-query");
+    const { vi } = await import("vitest");
+    const client = await import("@/lib/api/client");
+    const { backfill } = await import("./api");
+    const queryClient = new QueryClient();
+    const key = messageKeys.of({ kind: "channel", id: "c" });
+    // A message sent while the backfill request was in flight.
+    queryClient.setQueryData(key, pages([msg("pending-n", { pending: true, nonce: "n" })]));
+    vi.spyOn(client.api, "GET").mockResolvedValue({
+      data: { results: [msg("1")], has_more: false },
+    } as never);
+    await backfill(queryClient, { kind: "channel", id: "c" });
+    const ids = queryClient
+      .getQueryData<ReturnType<typeof pages>>(key)!
+      .pages[0].results.map((m) => m.id);
+    expect(ids).toEqual(["pending-n", "1"]); // newest first: the message being sent stays on top
   });
 });

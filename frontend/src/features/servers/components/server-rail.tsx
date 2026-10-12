@@ -1,5 +1,6 @@
 "use client";
 
+import { Compass } from "lucide-react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 
@@ -103,6 +104,11 @@ export function ServerRail() {
         ))}
       </ul>
       <AddServerDialog />
+      <RailItem href="/discover" label="Discover servers" active={pathname.startsWith("/discover")}>
+        <span className="flex size-12 items-center justify-center bg-card text-brand">
+          <Compass className="size-5" aria-hidden />
+        </span>
+      </RailItem>
     </>
   );
 }

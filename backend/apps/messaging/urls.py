@@ -20,6 +20,7 @@ server_urlpatterns = [
 message_urlpatterns = [
     path("<uuid:message_id>", views.MessageDetailView.as_view(), name="message"),
     path("<uuid:message_id>/pin", views.MessagePinView.as_view(), name="message-pin"),
+    path("<uuid:message_id>/report", views.MessageReportView.as_view(), name="message-report"),
     path(
         "<uuid:message_id>/reactions/<str:emoji>",
         views.ReactionView.as_view(),

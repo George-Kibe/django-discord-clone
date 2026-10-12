@@ -77,3 +77,48 @@ test("messaging UI is accessible (Phase 5)", async ({ browser }) => {
   await owner.context.close();
   await guest.context.close();
 });
+
+test("community UI is accessible (Phase 6)", async ({ browser }) => {
+  const owner = await newUser(browser, "a11y6_owner");
+  const guest = await newUser(browser, "a11y6_guest");
+  const { serverId } = await sharedServer(owner.page, guest.page, "Accessible Six");
+  const page = owner.page;
+
+  // A poll in the channel, and the poll dialog.
+  await apiPost(
+    page,
+    `/api/v1/channels/${(await (await page.request.get(`/api/v1/servers/${serverId}/channels`)).json())[0].id}/messages`,
+    {
+      content: "",
+      poll: { question: "Best day?", options: ["Mon", "Tue"], duration_minutes: 60 },
+    },
+  );
+  await page.getByTestId("poll").filter({ visible: true }).waitFor();
+  await page.getByTestId("create-poll").filter({ visible: true }).click();
+  await page.getByRole("dialog", { name: "Create a poll" }).waitFor();
+  await expectNoViolations(page);
+  await page.keyboard.press("Escape");
+
+  // Channel permissions editor.
+  await page.getByRole("link", { name: "general" }).hover();
+  await page.getByRole("button", { name: "Edit #general" }).click();
+  await page.getByRole("tab", { name: "Permissions" }).click();
+  await page.getByTestId("channel-permissions").waitFor();
+  await expectNoViolations(page);
+  await page.keyboard.press("Escape");
+
+  // Server settings: members (moderation), bans, audit log.
+  await page.goto(`/servers/${serverId}/settings`);
+  for (const tab of ["Members", "Bans", "Audit log"]) {
+    await page.getByRole("tab", { name: tab }).click();
+    await page.getByRole("tabpanel").waitFor();
+    await expectNoViolations(page);
+  }
+
+  // Discovery.
+  await page.goto("/discover");
+  await page.getByTestId("discover-search").waitFor();
+  await expectNoViolations(page);
+  await owner.context.close();
+  await guest.context.close();
+});

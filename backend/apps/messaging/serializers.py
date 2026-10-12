@@ -72,8 +72,27 @@ class ReplyPreviewSerializer(serializers.Serializer[Message]):
         return bool(message.attachments.all()) if message.deleted_at is None else False
 
 
+class PollOptionResultSerializer(serializers.Serializer[dict[str, Any]]):
+    id = serializers.IntegerField()
+    text = serializers.CharField()
+    votes = serializers.IntegerField()
+
+
+class PollSummarySerializer(serializers.Serializer[dict[str, Any]]):
+    id = serializers.UUIDField()
+    question = serializers.CharField()
+    allow_multiple = serializers.BooleanField()
+    closes_at = serializers.DateTimeField(allow_null=True)
+    closed_at = serializers.DateTimeField(allow_null=True)
+    options = PollOptionResultSerializer(many=True)
+    total_voters = serializers.IntegerField()
+    my_votes = serializers.ListField(
+        child=serializers.IntegerField(), help_text="Your chosen option ids (empty in broadcasts)."
+    )
+
+
 class MessageSerializer(serializers.ModelSerializer[Message]):
-    """Context: ``reactions`` ({message_id: [summary]}) from ``services.reaction_summaries``."""
+    """Context: ``reactions`` and ``polls`` ({message_id: summary}), see services.serialize."""
 
     author = UserSummarySerializer(read_only=True, allow_null=True)
     channel_id = serializers.UUIDField(read_only=True, allow_null=True)
@@ -83,6 +102,7 @@ class MessageSerializer(serializers.ModelSerializer[Message]):
     reactions = serializers.SerializerMethodField()
     mentions = serializers.SerializerMethodField()
     mention_roles = serializers.SerializerMethodField()
+    poll = serializers.SerializerMethodField()
 
     class Meta:
         model = Message
@@ -103,6 +123,7 @@ class MessageSerializer(serializers.ModelSerializer[Message]):
             "mentions",
             "mention_roles",
             "mention_everyone",
+            "poll",
         ]
         read_only_fields = fields
 
@@ -121,6 +142,11 @@ class MessageSerializer(serializers.ModelSerializer[Message]):
     def get_mentions(self, message: Message) -> list[dict[str, Any]]:
         users = [m.user for m in message.mentions.all() if m.user is not None]
         return list(UserSummarySerializer(users, many=True).data)
+
+    @extend_schema_field(PollSummarySerializer(allow_null=True))
+    def get_poll(self, message: Message) -> dict[str, Any] | None:
+        polls: dict[Any, dict[str, Any]] = self.context.get("polls") or {}
+        return polls.get(message.pk)
 
     @extend_schema_field(MentionRoleSerializer(many=True))
     def get_mention_roles(self, message: Message) -> list[dict[str, Any]]:
@@ -147,17 +173,33 @@ class AttachmentRefSerializer(serializers.Serializer[dict[str, Any]]):
     filename = serializers.CharField(max_length=255, help_text="The original file name.")
 
 
+class PollCreateSerializer(serializers.Serializer[dict[str, Any]]):
+    question = serializers.CharField(max_length=300)
+    options = serializers.ListField(
+        child=serializers.CharField(max_length=100), min_length=2, max_length=10
+    )
+    allow_multiple = serializers.BooleanField(default=False)
+    duration_minutes = serializers.IntegerField(
+        min_value=1,
+        max_value=7 * 24 * 60,
+        required=False,
+        allow_null=True,
+        help_text="Closes automatically after this long (max 7 days). Omit to keep it open.",
+    )
+
+
 class MessageWriteSerializer(serializers.Serializer[dict[str, Any]]):
     content = serializers.CharField(
         max_length=MAX_MESSAGE_LENGTH, trim_whitespace=False, allow_blank=True, default=""
     )
     nonce = serializers.CharField(max_length=64, required=False, allow_blank=True, allow_null=True)
     reply_to = serializers.UUIDField(required=False, allow_null=True)
+    poll = PollCreateSerializer(required=False, allow_null=True)
     attachments = AttachmentRefSerializer(many=True, required=False, max_length=MAX_ATTACHMENTS)  # type: ignore[call-arg]  # DRF supports it; stubs lag
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         content = _clean_content(attrs.get("content", ""))
-        if not content.strip() and not attrs.get("attachments"):
+        if not content.strip() and not attrs.get("attachments") and not attrs.get("poll"):
             raise serializers.ValidationError({"content": ["Message can't be empty."]})
         attrs["content"] = content
         return attrs

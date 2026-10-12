@@ -328,6 +328,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/discover/servers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description FR-SRV-08: public servers, searchable by name/description, filterable by topic. */
+        get: operations["discover_servers_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dms": {
         parameters: {
             query?: never;
@@ -460,6 +477,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/exports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["exports_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/exports/{export_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["exports_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/exports/{export_id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["exports_download_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/invites/{code}": {
         parameters: {
             query?: never;
@@ -564,6 +629,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/messages/{message_id}/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Report a message to site staff */
+        post: operations["messages_report_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/meta": {
         parameters: {
             query?: never;
@@ -646,6 +728,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/polls/{poll_id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Close the poll */
+        post: operations["polls_close_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/polls/{poll_id}/votes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Vote */
+        put: operations["polls_votes_update"];
+        post?: never;
+        /** Withdraw your vote */
+        delete: operations["polls_votes_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/read-states": {
         parameters: {
             query?: never;
@@ -693,6 +810,55 @@ export interface paths {
         options?: never;
         head?: never;
         patch: operations["servers_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/servers/{server_id}/audit-log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["servers_audit_log_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/servers/{server_id}/bans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["servers_bans_list"];
+        put?: never;
+        post: operations["servers_bans_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/servers/{server_id}/bans/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Unban */
+        delete: operations["servers_bans_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/servers/{server_id}/categories": {
@@ -823,6 +989,23 @@ export interface paths {
         options?: never;
         head?: never;
         patch: operations["servers_members_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/servers/{server_id}/members/{user_id}/kick": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Kick */
+        post: operations["servers_members_kick_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/servers/{server_id}/messages/search": {
@@ -1020,6 +1203,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/me/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Delete your account (messages stay as Deleted User) */
+        post: operations["users_me_delete_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/me/email": {
         parameters: {
             query?: never;
@@ -1030,6 +1230,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["users_me_email_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["users_me_export_retrieve"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1062,8 +1278,37 @@ export interface components {
             /** @description The original file name. */
             filename: string;
         };
+        AuditEvent: {
+            id: number;
+            action: string;
+            action_label: string;
+            actor: components["schemas"]["UserSummary"] | null;
+            target_type: string;
+            target_id: string;
+            target_label: string;
+            changes: unknown;
+            /** Format: date-time */
+            created_at: string;
+        };
+        AuditPage: {
+            results: components["schemas"]["AuditEvent"][];
+            next_cursor: number | null;
+        };
         AvatarRequest: {
             public_id: string;
+        };
+        Ban: {
+            user: components["schemas"]["UserSummary"];
+            moderator: components["schemas"]["UserSummary"] | null;
+            reason: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        BanCreateRequest: {
+            /** @default  */
+            reason: string;
+            /** Format: uuid */
+            user_id: string;
         };
         BlockRequestRequest: {
             /** Format: uuid */
@@ -1154,8 +1399,27 @@ export interface components {
             readonly avatar_url: string | null;
             presence: components["schemas"]["PresenceEnum"];
         };
+        DeleteAccountRequest: {
+            password: string;
+        };
         Detail: {
             detail: string;
+        };
+        DiscoverServer: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly name: string;
+            readonly description: string;
+            readonly icon_url: string | null;
+            /** Format: uuid */
+            readonly owner_id: string;
+            readonly topic: components["schemas"]["Topic"];
+            readonly is_public: boolean;
+            readonly member_count: number;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** @description Whether you're already a member. */
+            readonly joined: boolean;
         };
         EmailChangeRequest: {
             /** Format: email */
@@ -1165,6 +1429,47 @@ export interface components {
         EmailRequest: {
             /** Format: email */
             email: string;
+        };
+        ExportJob: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly status: components["schemas"]["ExportJobStatusEnum"];
+            /** Format: uuid */
+            readonly channel_id: string | null;
+            /** Format: uuid */
+            readonly dm_id: string | null;
+            /** Format: date */
+            readonly date_from: string | null;
+            /** Format: date */
+            readonly date_to: string | null;
+            readonly message_count: number;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly completed_at: string | null;
+            /** Format: date-time */
+            readonly expires_at: string | null;
+            /** @description Signed link, valid for 15 minutes. Only when the export is done. */
+            readonly download_url: string | null;
+        };
+        /**
+         * @description * `pending` - Pending
+         *     * `running` - Running
+         *     * `done` - Done
+         *     * `failed` - Failed
+         *     * `expired` - Expired
+         * @enum {string}
+         */
+        ExportJobStatusEnum: "pending" | "running" | "done" | "failed" | "expired";
+        ExportRequestRequest: {
+            /** Format: uuid */
+            channel_id?: string | null;
+            /** Format: uuid */
+            dm_id?: string | null;
+            /** Format: date */
+            date_from?: string | null;
+            /** Format: date */
+            date_to?: string | null;
         };
         Health: {
             status: components["schemas"]["HealthStatusEnum"];
@@ -1280,7 +1585,7 @@ export interface components {
             name: string;
             color: number;
         };
-        /** @description Context: ``reactions`` ({message_id: [summary]}) from ``services.reaction_summaries``. */
+        /** @description Context: ``reactions`` and ``polls`` ({message_id: summary}), see services.serialize. */
         Message: {
             /** Format: uuid */
             readonly id: string;
@@ -1304,6 +1609,7 @@ export interface components {
             readonly mentions: components["schemas"]["UserSummary"][];
             readonly mention_roles: components["schemas"]["MentionRole"][];
             readonly mention_everyone: boolean;
+            readonly poll: components["schemas"]["PollSummary"] | null;
         };
         MessagePage: {
             results: components["schemas"]["Message"][];
@@ -1312,16 +1618,18 @@ export interface components {
         /**
          * @description * `default` - Default
          *     * `reply` - Reply
+         *     * `poll` - Poll
          *     * `system` - System
          * @enum {string}
          */
-        MessageTypeEnum: "default" | "reply" | "system";
+        MessageTypeEnum: "default" | "reply" | "poll" | "system";
         MessageWriteRequest: {
             /** @default  */
             content: string;
             nonce?: string | null;
             /** Format: uuid */
             reply_to?: string | null;
+            poll?: components["schemas"]["PollCreateRequest"] | null;
             attachments?: components["schemas"]["AttachmentRefRequest"][];
         };
         Meta: {
@@ -1389,9 +1697,10 @@ export interface components {
          * @description * `mention` - Mention
          *     * `reply` - Reply
          *     * `dm` - Direct message
+         *     * `export_ready` - Export ready
          * @enum {string}
          */
-        NotificationTypeEnum: "mention" | "reply" | "dm";
+        NotificationTypeEnum: "mention" | "reply" | "dm" | "export_ready";
         Overwrite: {
             /** Format: uuid */
             readonly id: string;
@@ -1408,6 +1717,21 @@ export interface components {
             user_id?: string | null;
             allow: number;
             deny: number;
+        };
+        PaginatedDiscoverServerList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["DiscoverServer"][];
         };
         PaginatedMemberList: {
             /** @example 123 */
@@ -1489,6 +1813,33 @@ export interface components {
             value: number;
             description: string;
         };
+        PollCreateRequest: {
+            question: string;
+            options: string[];
+            /** @default false */
+            allow_multiple: boolean;
+            /** @description Closes automatically after this long (max 7 days). Omit to keep it open. */
+            duration_minutes?: number | null;
+        };
+        PollOptionResult: {
+            id: number;
+            text: string;
+            votes: number;
+        };
+        PollSummary: {
+            /** Format: uuid */
+            id: string;
+            question: string;
+            allow_multiple: boolean;
+            /** Format: date-time */
+            closes_at: string | null;
+            /** Format: date-time */
+            closed_at: string | null;
+            options: components["schemas"]["PollOptionResult"][];
+            total_voters: number;
+            /** @description Your chosen option ids (empty in broadcasts). */
+            my_votes: number[];
+        };
         /**
          * @description * `online` - online
          *     * `idle` - idle
@@ -1528,6 +1879,10 @@ export interface components {
             last_read_message_id: string | null;
             mention_count: number;
         };
+        ReasonRequest: {
+            /** @default  */
+            reason: string;
+        };
         RegisterRequest: {
             /** Format: email */
             email: string;
@@ -1542,6 +1897,9 @@ export interface components {
             readonly content: string;
             readonly deleted: boolean;
             readonly has_attachments: boolean;
+        };
+        ReportRequestRequest: {
+            reason: string;
         };
         /**
          * @description * `image` - image
@@ -1674,6 +2032,9 @@ export interface components {
             readonly username: string;
             readonly display_name: string;
             readonly avatar_url: string | null;
+        };
+        VoteRequest: {
+            option_ids: number[];
         };
     };
     responses: never;
@@ -2239,6 +2600,33 @@ export interface operations {
             };
         };
     };
+    discover_servers_list: {
+        parameters: {
+            query?: {
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+                /** @description Name or description */
+                q?: string;
+                /** @description Topic slug */
+                topic?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedDiscoverServerList"];
+                };
+            };
+        };
+    };
     dms_list: {
         parameters: {
             query?: never;
@@ -2524,6 +2912,73 @@ export interface operations {
             };
         };
     };
+    exports_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ExportRequestRequest"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportJob"];
+                };
+            };
+        };
+    };
+    exports_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                export_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportJob"];
+                };
+            };
+        };
+    };
+    exports_download_retrieve: {
+        parameters: {
+            query: {
+                token: string;
+            };
+            header?: never;
+            path: {
+                export_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+        };
+    };
     invites_retrieve: {
         parameters: {
             query?: never;
@@ -2759,6 +3214,30 @@ export interface operations {
             };
         };
     };
+    messages_report_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportRequestRequest"];
+            };
+        };
+        responses: {
+            /** @description No response body */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     meta_retrieve: {
         parameters: {
             query?: never;
@@ -2886,6 +3365,70 @@ export interface operations {
             };
         };
     };
+    polls_close_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                poll_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    polls_votes_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                poll_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoteRequest"];
+            };
+        };
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    polls_votes_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                poll_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     read_states_list: {
         parameters: {
             query?: never;
@@ -3010,6 +3553,99 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ServerDetail"];
                 };
+            };
+        };
+    };
+    servers_audit_log_retrieve: {
+        parameters: {
+            query?: {
+                /** @description Filter by action */
+                action?: string;
+                /** @description `next_cursor` from the last page */
+                cursor?: number;
+            };
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditPage"];
+                };
+            };
+        };
+    };
+    servers_bans_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ban"][];
+                };
+            };
+        };
+    };
+    servers_bans_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BanCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ban"];
+                };
+            };
+        };
+    };
+    servers_bans_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -3266,6 +3902,31 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Member"];
                 };
+            };
+        };
+    };
+    servers_members_kick_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -3654,6 +4315,28 @@ export interface operations {
             };
         };
     };
+    users_me_delete_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeleteAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     users_me_email_create: {
         parameters: {
             query?: never;
@@ -3673,6 +4356,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Detail"];
+                };
+            };
+        };
+    };
+    users_me_export_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };

@@ -23,6 +23,7 @@ dependencies = [
     "whitenoise>=6.12.0",
     "sentry-sdk[django,celery]>=2.71.0",
     "python-json-logger>=4.2.0",
+    "reportlab>=4.4",
 ]
 
 [dependency-groups]
@@ -41,6 +42,7 @@ dev = [
     "celery-types",
     "django-debug-toolbar",
     "daphne",  # required by channels.testing
+    "types-reportlab>=5.0.0.20261008",
 ]
 
 [tool.uv]

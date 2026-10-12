@@ -332,3 +332,26 @@ class ContactsView(APIView):
     def get(self, request: Request) -> Response:
         users = dms.contacts(current_user(request), request.query_params.get("q", "")[:50])
         return Response(UserSummarySerializer(users, many=True).data)
+
+
+# ---------------------------------------------------------------------------- reports (FR-MOD-03)
+
+
+class ReportRequestSerializer(serializers.Serializer[dict[str, Any]]):
+    reason = serializers.CharField(max_length=1000)
+
+
+class MessageReportView(APIView):
+    @extend_schema(
+        request=ReportRequestSerializer,
+        responses={201: None},
+        tags=TAGS,
+        summary="Report a message to site staff",
+    )
+    def post(self, request: Request, message_id: UUID) -> Response:
+        serializer = ReportRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = current_user(request)
+        message = services.get_message(message_id)
+        services.report(message_target(user, message), message, serializer.validated_data["reason"])
+        return Response(status=status.HTTP_201_CREATED)

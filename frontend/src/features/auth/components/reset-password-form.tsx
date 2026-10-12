@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api/client";
 import { applyFieldErrors } from "@/lib/api/errors";
+import { useHydrated } from "@/lib/use-hydrated";
+import { cn } from "@/lib/utils";
 
 import { resetPasswordSchema, type ResetPasswordValues } from "../schemas";
 
@@ -24,6 +26,7 @@ export function ResetPasswordForm() {
     resolver: zodResolver(resetPasswordSchema),
     defaultValues: { password: "", confirm: "" },
   });
+  const hydrated = useHydrated();
   const { errors, isSubmitting } = form.formState;
 
   if (!uid || !token) {
@@ -59,7 +62,7 @@ export function ResetPasswordForm() {
     );
   }
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="grid gap-4">
+    <form method="post" onSubmit={form.handleSubmit(onSubmit)} noValidate className="grid gap-4">
       {formError ? (
         <FormMessage tone="error">
           {formError}{" "}
@@ -93,7 +96,12 @@ export function ResetPasswordForm() {
           />
         )}
       </FormField>
-      <Button type="submit" disabled={isSubmitting} className="w-full">
+      <Button
+        type="submit"
+        disabled={isSubmitting || !hydrated}
+        // Before hydration it ignores clicks (no native submit) without looking disabled.
+        className={cn("w-full", !hydrated && "disabled:opacity-100")}
+      >
         {isSubmitting ? "Saving…" : "Set new password"}
       </Button>
     </form>

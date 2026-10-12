@@ -10,6 +10,7 @@ from rest_framework import exceptions
 from apps.core.permissions import Perm
 from apps.realtime import events
 from apps.realtime.subscriptions import compute as compute_subscriptions
+from apps.servers import audit
 from apps.servers.access import ServerAccess
 from apps.servers.models import Member, Role
 
@@ -110,6 +111,14 @@ def create_channel(access: ServerAccess, data: dict[str, Any]) -> Channel:
         position=0 if top is None else top + 1,
         **data,
     )
+    audit.record(
+        access.server.pk,
+        access.user,
+        audit.Action.CHANNEL_CREATE,
+        target_type="channel",
+        target_id=channel.pk,
+        label=channel.name,
+    )
     events.server_changed(access.server.pk, "channel.created", id=str(channel.pk))
     return channel
 
@@ -120,9 +129,19 @@ def update_channel(access: ServerAccess, channel: Channel, data: dict[str, Any])
         data["name"] = normalize_channel_name(data["name"])
     if "category_id" in data:
         channel.category = _category(access, data.pop("category_id"))
+    before = {key: getattr(channel, key) for key in data}
     for key, value in data.items():
         setattr(channel, key, value)
     channel.save()
+    audit.record(
+        access.server.pk,
+        access.user,
+        audit.Action.CHANNEL_UPDATE,
+        target_type="channel",
+        target_id=channel.pk,
+        label=channel.name,
+        changes={k: {"from": before[k], "to": v} for k, v in data.items() if before[k] != v},
+    )
     events.server_changed(access.server.pk, "channel.updated", id=str(channel.pk))
     return channel
 
@@ -131,6 +150,14 @@ def delete_channel(access: ServerAccess, channel: Channel) -> None:
     access.require_channel(channel, Perm.MANAGE_CHANNELS)
     channel_id = str(channel.pk)
     channel.delete()
+    audit.record(
+        access.server.pk,
+        access.user,
+        audit.Action.CHANNEL_DELETE,
+        target_type="channel",
+        target_id=channel_id,
+        label=channel.name,
+    )
     events.server_changed(access.server.pk, "channel.deleted", id=channel_id)
 
 
@@ -192,12 +219,26 @@ def set_overwrite(
             )
         target = {"role": role}
     else:
-        member = Member.objects.filter(server=access.server, user_id=user_id).first()
+        member = (
+            Member.objects.select_related("user")
+            .filter(server=access.server, user_id=user_id)
+            .first()
+        )
         if member is None:
             raise exceptions.ValidationError({"user_id": ["Not a member of this server."]})
         target = {"member": member}
     overwrite, _ = PermissionOverwrite.objects.update_or_create(
         channel=channel, **target, defaults={"allow": allow, "deny": deny}
+    )
+    who = target["role"].name if "role" in target else target["member"].user.username
+    audit.record(
+        access.server.pk,
+        access.user,
+        audit.Action.OVERWRITE_UPDATE,
+        target_type="channel",
+        target_id=channel.pk,
+        label=channel.name,
+        changes={"for": who, "allow": allow, "deny": deny},
     )
     events.server_changed(access.server.pk, "channel.updated", id=str(channel.pk))
     return overwrite
@@ -209,6 +250,15 @@ def delete_overwrite(access: ServerAccess, channel: Channel, overwrite_id: Any) 
     deleted, _ = PermissionOverwrite.objects.filter(pk=overwrite_id, channel=channel).delete()
     if not deleted:
         raise exceptions.NotFound()
+    audit.record(
+        access.server.pk,
+        access.user,
+        audit.Action.OVERWRITE_UPDATE,
+        target_type="channel",
+        target_id=channel.pk,
+        label=channel.name,
+        changes={"removed_overwrite": str(overwrite_id)},
+    )
     events.server_changed(access.server.pk, "channel.updated", id=str(channel.pk))
 
 

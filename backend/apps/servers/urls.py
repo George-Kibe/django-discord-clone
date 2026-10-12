@@ -27,6 +27,14 @@ server_urlpatterns = [
         "<uuid:server_id>/roles/<uuid:role_id>", views.RoleDetailView.as_view(), name="server-role"
     ),
     path("<uuid:server_id>/invites", views.ServerInviteListView.as_view(), name="server-invites"),
+    path(
+        "<uuid:server_id>/members/<uuid:user_id>/kick",
+        views.KickView.as_view(),
+        name="server-member-kick",
+    ),
+    path("<uuid:server_id>/bans", views.BanListView.as_view(), name="server-bans"),
+    path("<uuid:server_id>/bans/<uuid:user_id>", views.BanDetailView.as_view(), name="server-ban"),
+    path("<uuid:server_id>/audit-log", views.AuditLogView.as_view(), name="server-audit-log"),
 ]
 
 invite_urlpatterns = [

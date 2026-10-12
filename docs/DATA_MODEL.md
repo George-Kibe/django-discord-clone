@@ -106,7 +106,7 @@ Email verification and password reset tokens are stateless signed tokens (Django
 
 ### ServerAuditEvent
 
-`server, actor, action (enum), target_type, target_id, changes (jsonb), created_at`.
+`server, actor, action (enum: server.update, member.kick/ban/unban/update, role.create/update/delete, channel.create/update/delete, overwrite.update, message.delete, invite.create/revoke), target_type, target_id, target_label (name at the time), changes (jsonb, e.g. `{field: {from, to}}` or a reason), created_at`. Indexed `(server, -id)`.
 
 ## chat_channels
 
@@ -190,7 +190,7 @@ Indexes: `(channel, id DESC)`, `(dm, id DESC)` (history pagination); `(author, i
 
 ### PollOption
 
-`id, poll, text (varchar(100)), position`. 2–10 per poll.
+`id (bigint), poll, text (varchar(100)), position`. 2–10 per poll, unique (case-insensitive) within a poll.
 
 ### PollVote
 
@@ -210,7 +210,11 @@ Indexes: `(channel, id DESC)`, `(dm, id DESC)` (history pagination); `(author, i
 
 ### ExportJob
 
-`id, requested_by, scope (channel|dm), channel (nullable), dm (nullable), date_from, date_to, status (pending|running|done|failed), public_id (nullable), error (text), completed_at, expires_at`.
+`id, requested_by, channel (nullable), dm (nullable), date_from, date_to, status (pending|running|done|failed|expired), file_name (on the `exports` volume), message_count, error (text), created_at, completed_at, expires_at`. Exactly one of `channel`/`dm`.
+
+### MessageReport (messaging)
+
+`message, reporter (SET_NULL), reason, content_snapshot, status (open|resolved|dismissed), created_at, resolved_at`. One open report per message and reporter. Reviewed in Django admin.
 
 ## Permissions
 

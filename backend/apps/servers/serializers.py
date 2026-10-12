@@ -193,3 +193,49 @@ class InvitePreviewSerializer(serializers.ModelSerializer[Invite]):
         model = Invite
         fields = ["code", "server", "inviter", "expires_at"]
         read_only_fields = fields
+
+
+# ---------------------------------------------------------------------------- moderation, discovery
+
+
+class ReasonSerializer(serializers.Serializer[dict[str, Any]]):
+    reason = serializers.CharField(max_length=512, required=False, allow_blank=True, default="")
+
+
+class BanCreateSerializer(ReasonSerializer):
+    user_id = serializers.UUIDField()
+
+
+class BanSerializer(serializers.Serializer[Any]):
+    user = UserSummarySerializer()
+    moderator = UserSummarySerializer(allow_null=True)
+    reason = serializers.CharField()
+    created_at = serializers.DateTimeField()
+
+
+class AuditEventSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    action = serializers.CharField()
+    action_label = serializers.CharField(source="get_action_display")
+    actor = UserSummarySerializer(allow_null=True)
+    target_type = serializers.CharField()
+    target_id = serializers.CharField()
+    target_label = serializers.CharField()
+    changes = serializers.JSONField()
+    created_at = serializers.DateTimeField()
+
+
+class AuditPageSerializer(serializers.Serializer[dict[str, Any]]):
+    results = AuditEventSerializer(many=True)
+    next_cursor = serializers.IntegerField(allow_null=True)
+
+
+class DiscoverServerSerializer(ServerSerializer):
+    joined = serializers.SerializerMethodField(help_text="Whether you're already a member.")
+
+    class Meta(ServerSerializer.Meta):
+        fields = [*ServerSerializer.Meta.fields, "joined"]
+        read_only_fields = fields
+
+    def get_joined(self, server: Server) -> bool:
+        return server.pk in self.context.get("joined", set())

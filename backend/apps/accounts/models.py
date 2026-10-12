@@ -111,6 +111,7 @@ class AuthAuditEvent(models.Model):
         PASSWORD_RESET = "password_reset", "Password reset"
         EMAIL_CHANGED = "email_changed", "Email changed"
         TOKEN_REFRESH_REUSE = "token_refresh_reuse", "Refresh token reuse detected"
+        ACCOUNT_DELETED = "account_deleted", "Account deleted"
 
     id = models.BigAutoField(primary_key=True)
     user = models.ForeignKey(
