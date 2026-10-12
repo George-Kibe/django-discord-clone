@@ -15,7 +15,7 @@ from apps.core.throttling import ScopedWindowThrottle
 
 from . import dms, services
 from .serializers import (
-    AckSerializer,
+    DMAckRequestSerializer,
     DMAddParticipantsSerializer,
     DMConversationSerializer,
     DMCreateSerializer,
@@ -308,9 +308,9 @@ class DMAckSerializer(serializers.Serializer[dict[str, Any]]):
 
 
 class DMAckView(APIView):
-    @extend_schema(request=AckSerializer, responses=DMAckSerializer, tags=DM_TAGS)
+    @extend_schema(request=DMAckRequestSerializer, responses=DMAckSerializer, tags=DM_TAGS)
     def post(self, request: Request, dm_id: UUID) -> Response:
-        serializer = AckSerializer(data=request.data)
+        serializer = DMAckRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = current_user(request)
         target = dm_target(user, dm_id)

@@ -277,5 +277,5 @@ class DMAddParticipantsSerializer(serializers.Serializer[dict[str, Any]]):
     )
 
 
-class AckSerializer(serializers.Serializer[dict[str, Any]]):
+class DMAckRequestSerializer(serializers.Serializer[dict[str, Any]]):
     message_id = serializers.UUIDField()
