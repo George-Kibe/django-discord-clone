@@ -44,6 +44,7 @@ Lightweight ADRs. Each records a decision, its context and its consequences. ADR
 | 023 | Backups: age public-key encryption + rclone to any S3 | Accepted |
 | 024 | Gateway: automatic subscriptions, close-on-expiry, patch hot data | Accepted |
 | 025 | Messaging: conversation targets, mention tokens, coalesced DM notifications | Accepted |
+| 026 | Exports on a shared volume, refresh rotation leeway, catch-up on every connect | Accepted (refines ADR-006, ADR-024) |
 
 ---
 
@@ -422,3 +423,20 @@ Phase 5 adds DMs next to channels, plus replies, mentions, reactions, pins, atta
 - Renaming a user or role never breaks old messages. Tokens of departed users render as "@unknown-user".
 - The inbox stays readable for busy DMs. Unread DM badges come from participant counters, so they're one query.
 - `simple` search config means no stemming: "notes" doesn't match "note". That's acceptable for a multilingual student audience and could move to per-language configs later.
+
+## ADR-026: Exports on a shared volume, refresh rotation leeway, catch-up on every connect
+- **Status:** Accepted (refines ADR-006 and ADR-024)
+- **Date:** 2026-10-13
+
+### Context
+Phase 6 adds PDF transcript exports that must be downloadable for 24 hours through short-lived links (FR-EXP). Testing under load also surfaced two session issues. A refresh request aborted by a reload rotated the refresh token server-side, but the browser never received the replacement, so the next refresh failed and the user was signed out. And data fetched before the gateway's first `ready` could miss events.
+
+### Decision
+- **Exports.** reportlab (as in the legacy app) renders the PDF in a Celery task onto an `exports` Docker volume shared by `api` and `worker`. The image creates `/data/exports` owned by the app user, so a fresh volume is writable. Downloads go through the API with a Django-signed token bound to the requesting user and valid for 15 minutes. Files are deleted 24 h after completion by an hourly task. No Cloudinary dependency, so exports work in CI and on any host.
+- **Refresh rotation leeway.** A refresh token blacklisted *by rotation* within the last `AUTH_REFRESH_REUSE_GRACE_SECONDS` (30 s) is answered with a fresh pair instead of a 401. Rotations and revocations are recorded in the cache, and a revocation (password change or reset, logout everywhere) after the rotation always wins. Tokens revoked by logout never get the leeway. Outside the window, reuse is still treated as theft and revokes every session (ADR-006).
+- **Catch-up on every `ready`.** The client refetches all non-message data and backfills loaded conversations on the *first* gateway `ready` too, not only after reconnects.
+
+### Consequences
+- Exports need a persistent volume next to the database volume. It isn't backed up; the files are disposable.
+- A token stolen and replayed within 30 seconds of its legitimate rotation would get a session. That window is accepted for reliability, matching common identity providers' reuse intervals.
+- A page load costs one extra round of GETs shortly after the socket connects.

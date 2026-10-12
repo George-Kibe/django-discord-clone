@@ -101,8 +101,8 @@ Request and response shapes are in the OpenAPI schema. ✱ = requires a verified
 | GET/PATCH | `/users/me` | Own profile (PATCH: `username`, `display_name`, `bio`, `status`) |
 | POST | `/users/me/email` | `{new_email, password}` → confirmation link to the new address (`202`) |
 | PUT/DELETE | `/users/me/avatar` | Attach an upload from `/media/sign` (`{public_id}`) / remove the avatar |
-| DELETE | `/users/me` | Delete account |
-| GET | `/users/me/export` | Data export (JSON) |
+| POST | `/users/me/delete` | `{password}` → delete the account (FR-AUTH-09). Messages stay as "Deleted User". `400 owns_servers` until owned servers are transferred or deleted |
+| GET | `/users/me/export` | Personal data export as a JSON download: profile, servers, DMs, messages, reactions, poll votes, blocks (NFR-PRIV-02) |
 | GET | `/users/{id}` | Public profile card, incl. `mutual_servers` with the viewer |
 | GET/POST/DELETE | `/users/me/blocks[/{user_id}]` | Block list. POST `{user_id}` (FR-DM-04) |
 | GET | `/users/me/contacts?q=` | People you share a server with (who you can DM) |
@@ -119,8 +119,8 @@ Request and response shapes are in the OpenAPI schema. ✱ = requires a verified
 | POST | `/servers/{id}/leave` | |
 | GET | `/servers/{id}/members` | Paginated, with presence |
 | PATCH | `/servers/{id}/members/{user_id}` | Nickname, roles |
-| POST | `/servers/{id}/members/{user_id}/kick` | KICK_MEMBERS |
-| GET/POST/DELETE | `/servers/{id}/bans[/{user_id}]` | BAN_MEMBERS |
+| POST | `/servers/{id}/members/{user_id}/kick` | `{reason?}`. KICK_MEMBERS, and the target must rank below you (never the owner) |
+| GET/POST/DELETE | `/servers/{id}/bans[/{user_id}]` | BAN_MEMBERS. POST `{user_id, reason?}` removes them if they're a member; banned users get `403 banned` on invites and public joins |
 | GET/POST | `/servers/{id}/roles` | MANAGE_ROLES for writes |
 | PATCH/DELETE | `/servers/{id}/roles/{role_id}` | |
 | PATCH | `/servers/{id}/roles/reorder` | |
@@ -128,8 +128,8 @@ Request and response shapes are in the OpenAPI schema. ✱ = requires a verified
 | DELETE | `/invites/{code}` | Revoke |
 | GET | `/invites/{code}` | Invite preview (public) |
 | POST | `/invites/{code}/accept` ✱ | Join via invite |
-| GET | `/servers/{id}/audit-log` | VIEW_AUDIT_LOG |
-| GET | `/discover/servers` | Public servers (`?q=&topic=`) |
+| GET | `/servers/{id}/audit-log` | VIEW_AUDIT_LOG. `?action=&cursor=` → `{results: [{action, action_label, actor, target_type, target_id, target_label, changes, created_at}], next_cursor}`, 50 per page. Records server settings, roles, member roles, channels, overwrites, invites, kicks, bans and moderator message deletes |
+| GET | `/discover/servers` | Public servers, most members first (`?q=&topic=&page=`, 24 per page), each with `joined` |
 | GET | `/topics` | Topic list (seeded) |
 | GET | `/permissions` | Permission bits with descriptions (role editor). The frontend also gets generated constants (`frontend/src/types/permissions.ts`) |
 
@@ -159,7 +159,7 @@ Request and response shapes are in the OpenAPI schema. ✱ = requires a verified
 | GET | `/channels/{id}/pins` · `/dms/{id}/pins` | Newest pin first |
 | PUT/DELETE | `/messages/{id}/reactions/{emoji}` | Add/remove own reaction. Unicode emoji only; max 20 different per message; a new emoji needs ADD_REACTIONS |
 | GET | `/messages/{id}/reactions/{emoji}` | Users who reacted (first 100) |
-| POST | `/messages/{id}/report` | Report to staff (Phase 6) |
+| POST | `/messages/{id}/report` | `{reason}` → report to site staff (Django admin). Not your own message; one open report per message and reporter |
 | GET | `/servers/{id}/messages/search` · `/dms/{id}/messages/search` | Full-text search: `q` (web-search syntax: words, `"phrases"`, `-exclude`), `author`, `channel`, `has=attachment\|image\|file`, `before`/`after` (dates), `cursor`, `limit`. Returns `{results, total, next_cursor}`, newest first, only channels with READ_MESSAGE_HISTORY |
 
 **Message payload** (REST and events): `id, channel_id | dm_id, author, type (default|reply|system), content, nonce, created_at, edited_at, pinned_at, reply_to {id, author, content, deleted, has_attachments} | null, attachments [{id, filename, content_type, size_bytes, width, height, is_image, url, preview_url}], reactions [{emoji, count, me}], mentions [user], mention_roles [{id, name, color}], mention_everyone`.
@@ -182,10 +182,10 @@ Request and response shapes are in the OpenAPI schema. ✱ = requires a verified
 
 | Method | Path | Description |
 |---|---|---|
-| (create) | — | Created as part of `POST …/messages` with a `poll` object |
-| PUT | `/polls/{id}/votes` | `{option_ids: [...]}` (replaces my vote) |
-| DELETE | `/polls/{id}/votes` | Withdraw vote |
-| POST | `/polls/{id}/close` | Author or MANAGE_MESSAGES |
+| (create) | — | `POST …/messages` with `poll: {question, options (2–10), allow_multiple, duration_minutes?}` (CREATE_POLLS; max 7 days). The message gets `type: "poll"` and a `poll` summary: `{id, question, allow_multiple, closes_at, closed_at, options: [{id, text, votes}], total_voters, my_votes}` |
+| PUT | `/polls/{id}/votes` | `{option_ids: [...]}` replaces your vote. `400 poll_closed` once closed |
+| DELETE | `/polls/{id}/votes` | Withdraw your vote |
+| POST | `/polls/{id}/close` | Author or MANAGE_MESSAGES. Polls with a duration close automatically |
 
 ### Notifications, media, exports, health
 
@@ -195,8 +195,9 @@ Request and response shapes are in the OpenAPI schema. ✱ = requires a verified
 | POST | `/notifications/read` | `{ids}` or `{all: true}` |
 | GET/PUT | `/mute-settings` | PUT `{target_type: server\|channel\|dm, target_id, muted, muted_until?}`. Muted targets skip @everyone/@role and DM notifications; direct @mentions and replies still notify |
 | POST | `/media/sign` | Signed Cloudinary upload params. `purpose=attachment` takes images (`image` resources with previews) and files like pdf, txt, zip, docx (`raw`), up to 10 MB |
-| POST | `/exports` | Start PDF export → `202` |
-| GET | `/exports/{id}` | Status + short-lived download URL when done |
+| POST | `/exports` | `{channel_id \| dm_id, date_from?, date_to?}` → `202` with the job. Channels need EXPORT_TRANSCRIPTS; DM participants can always export. At most 3 running per user |
+| GET | `/exports/{id}` | Your job's status (`pending/running/done/failed/expired`) and, when done, a `download_url` signed for 15 minutes |
+| GET | `/exports/{id}/download?token=` | The PDF (yours only). Files are deleted 24 h after completion |
 | GET | `/health/live` · `/health/ready` | Health checks (unauthenticated, outside `/v1`) |
 
 ---
@@ -273,7 +274,7 @@ Structural events carry ids only. Clients refetch the resource over REST.
 | `server.access_changed` | user | `{server_id}`: your permissions or visible channels there changed |
 | `server.removed` | user | `{server_id}`: you left, were removed, or the server was deleted |
 
-Message events (`message.*`) are sent to `channel.{id}` or `dm.{id}` and carry `channel_id`, `dm_id` and `server_id`. `typing.started` carries `channel_id` or `dm_id`. Planned for later phases: `poll.updated`, `export.*`.
+Message events (`message.*`) are sent to `channel.{id}` or `dm.{id}` and carry `channel_id`, `dm_id` and `server_id`. `typing.started` carries `channel_id` or `dm_id`. `poll.updated` (channel / dm): `{message_id, poll (without my_votes), voter_id, voter_option_ids}` plus the scope; clients keep their own `my_votes` unless `voter_id` is them. `export.ready` / `export.failed` (user): `{export_id}`; a ready export also creates an `export_ready` notification.
 
 ### Close codes
 

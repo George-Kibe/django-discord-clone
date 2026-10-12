@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-13
+
+Phase 6: community features.
+
+### Added
+
+- Discover public servers by name, description or topic, and join them from an Explore page.
+- Polls: 2–10 answers, single or multiple choice, optional end time. Results update live, and you can change or remove your vote. The author or a moderator can end a poll early.
+- PDF transcript exports for channels (Export Transcripts permission) and DMs, made in the background. When the export is ready it appears in the inbox and downloads from there for 24 hours.
+- Moderation: kick and ban (with reasons) from server settings. Banned users can't rejoin until unbanned. New Bans and Audit log tabs show who changed what. Anyone can report a message to site staff, who review reports in the Django admin. Staff can also manage servers, topics, bans and polls there.
+- Channel permissions: a private-channel switch and per-role/per-member allow, inherit or deny settings.
+- Account: download your data as JSON, or delete your account (your messages stay as "Deleted User").
+
+### Fixed
+
+- Reloading the page during a token refresh could sign you out. A just-rotated refresh token is now accepted for 30 seconds; password changes and logouts still revoke immediately.
+- Changes made right as the page loaded (before the live connection was ready) could be missed until a reload.
+- Role names in server settings failed colour-contrast checks.
+
 ## [0.6.0] - 2026-10-12
 
 Phase 5: rich messaging & DMs.
@@ -142,7 +161,8 @@ Phase 0: foundations.
 
 - Original "StudyBuddy" Django/Jinja application: topics, rooms, messages, participants, activity feed, user profiles, a polls app, rooms PDF export and login/logout audit signals. This code moves to `legacy/` in Phase 0 of the rewrite.
 
-[Unreleased]: https://github.com/George-Kibe/django-discord-clone/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/George-Kibe/django-discord-clone/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/George-Kibe/django-discord-clone/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/George-Kibe/django-discord-clone/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/George-Kibe/django-discord-clone/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/George-Kibe/django-discord-clone/compare/v0.3.0...v0.4.0

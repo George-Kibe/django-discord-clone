@@ -12,7 +12,7 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
 | 3 | Servers, channels & messages | v0.4.0 | ✅ |
 | 4 | Real-time | v0.5.0 | ✅ |
 | 5 | Rich messaging & DMs | v0.6.0 | ✅ |
-| 6 | Community features | v0.7.0 | ⬜ |
+| 6 | Community features | v0.7.0 | ✅ |
 | 7 | Hardening, deployment & launch | v1.0.0 | ⬜ |
 
 The production pipeline (Phase 2) was built early and is rehearsed against production images on every infra change (`infra/scripts/rehearse-production.sh`). The **real deployment** waits for the VPS and is the **last step** (Phase 7). Until then, everything is developed and tested locally.
@@ -128,16 +128,18 @@ The production pipeline (Phase 2) was built early and is rehearsed against produ
 
 **Exit criteria:** all FR-MSG/FR-DM/FR-SRCH (M + S) have passing tests and E2E coverage of the mention → notification and DM flows (**met**: 373 backend tests, 97 unit tests, E2E for mentions → inbox, replies/reactions/pins, DMs and blocking, group DMs, search, real Cloudinary attachments, plus axe checks for the new UI; 26/26 on both http://localhost and http://localhost:3000).
 
-## Phase 6: Community features (`v0.7.0`)
+## Phase 6: Community features (`v0.7.0`) ✅
 
-- [ ] Topics + public servers + discovery page (FR-SRV-07/08)
-- [ ] Polls with live results and auto-close (FR-POLL-01…04)
-- [ ] PDF transcript export via Celery + notification + expiry (FR-EXP-01…03)
-- [ ] Moderation: kick, ban/unban, server audit log, message reports (FR-MOD-01…03)
-- [ ] Channel permission overwrites UI (private channels) (FR-ROLE-05)
-- [ ] Account deletion + personal data export (FR-AUTH-09, NFR-PRIV-02)
+- [x] Topics + public servers + discovery page with search and topic filters (FR-SRV-07/08)
+- [x] Polls with live results, vote changes, manual close and auto-close (FR-POLL-01…04)
+- [x] PDF transcript export via Celery + inbox notification + signed links + 24 h expiry (FR-EXP-01…03, ADR-026)
+- [x] Moderation: kick, ban/unban (bans block rejoining), server audit log, message reports to staff (FR-MOD-01…03); staff tools in Django admin for users, servers, reports and the audit log (FR-MOD-04/05)
+- [x] Channel permission overwrites UI with a private-channel switch (FR-ROLE-05)
+- [x] Account deletion + personal data export (FR-AUTH-09, NFR-PRIV-02)
+- Fixed along the way: a reload during a token refresh could sign you out (rotation leeway, ADR-026); data fetched before the gateway's first `ready` could miss events (full catch-up on every connect); role names in server settings failed colour contrast
+- Not in scope (Could): server reordering (FR-SRV-10), slow mode (FR-CH-05)
 
-**Exit criteria:** feature parity with the legacy app plus all M/S requirements implemented.
+**Exit criteria:** feature parity with the legacy app (topics, rooms → servers/channels, messages, participants → members, activity feed → inbox, profiles, polls, PDF export, login audit) plus all M/S requirements implemented (**met**: 401 backend tests, 100 unit tests, 34/34 E2E on both http://localhost and http://localhost:3000, with axe checks for the new UI).
 
 ## Phase 7: Hardening, deployment & launch (`v1.0.0`)
 

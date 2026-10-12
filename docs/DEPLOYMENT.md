@@ -14,7 +14,7 @@ Internet ─▶ :80/:443 caddy ─▶ web (Next.js, :3000)
 ```
 
 - Only Caddy publishes ports. Everything else sits on an internal Docker network.
-- Persistent volumes: `pgdata`, `redisdata`, `caddy_data` (certificates), `caddy_config`.
+- Persistent volumes: `pgdata`, `redisdata`, `caddy_data` (certificates), `caddy_config`, and `exports` (PDF transcripts shared by `api` and `worker`, deleted after 24 h; not backed up, see ADR-026).
 - Host layout: `/srv/app/` holds `compose.yaml`, `compose.prod.yaml`, `.env`, `infra/Caddyfile`.
 
 ## 2. Server provisioning (one-time)
