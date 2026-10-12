@@ -27,7 +27,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 
-import { keys, useCategories, useChannels, type Channel } from "../api";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { hasPerm } from "@/lib/permissions";
+
+import { keys, useCategories, useChannels, useServer, type Channel } from "../api";
+import { ChannelPermissions } from "./channel-permissions";
 
 const NONE = "none";
 
@@ -51,6 +55,8 @@ export function ChannelSettingsDialog({
   const { data: channels = [] } = useChannels(channel.server_id);
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: keys.channels(channel.server_id) });
+  const { data: server } = useServer(channel.server_id);
+  const canManageRoles = hasPerm(server?.me.permissions, "MANAGE_ROLES");
 
   /** FR-CH-02: swap with the neighbouring channel in the same category. */
   async function move(delta: -1 | 1) {
@@ -120,71 +126,86 @@ export function ChannelSettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <form onSubmit={save} className="grid gap-4" noValidate>
-          <DialogHeader>
-            <DialogTitle>Edit #{channel.name}</DialogTitle>
-          </DialogHeader>
-          {error ? <FormMessage tone="error">{error}</FormMessage> : null}
-          <FormField label="Channel name" hint="Lowercase, spaces become hyphens.">
-            {(field) => <Input {...field} value={name} onChange={(e) => setName(e.target.value)} />}
-          </FormField>
-          <FormField label="Topic">
-            {(field) => (
-              <Textarea
-                {...field}
-                rows={3}
-                maxLength={1024}
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-              />
-            )}
-          </FormField>
-          <div className="grid gap-2">
-            <Label htmlFor="channel-category">Category</Label>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger id="channel-category" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NONE}>No category</SelectItem>
-                {categories.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => move(-1)}
-              disabled={busy}
-            >
-              Move up
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => move(1)}
-              disabled={busy}
-            >
-              Move down
-            </Button>
-          </div>
-          <DialogFooter className="sm:justify-between">
-            <Button type="button" variant="destructive" onClick={remove} disabled={busy}>
-              Delete channel
-            </Button>
-            <Button type="submit" disabled={busy}>
-              {busy ? "Saving…" : "Save"}
-            </Button>
-          </DialogFooter>
-        </form>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Edit #{channel.name}</DialogTitle>
+        </DialogHeader>
+        <Tabs defaultValue="overview">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            {canManageRoles ? <TabsTrigger value="permissions">Permissions</TabsTrigger> : null}
+          </TabsList>
+          {canManageRoles ? (
+            <TabsContent value="permissions" className="pt-3">
+              <ChannelPermissions channel={channel} />
+            </TabsContent>
+          ) : null}
+          <TabsContent value="overview" className="pt-3">
+            <form onSubmit={save} className="grid gap-4" noValidate>
+              {error ? <FormMessage tone="error">{error}</FormMessage> : null}
+              <FormField label="Channel name" hint="Lowercase, spaces become hyphens.">
+                {(field) => (
+                  <Input {...field} value={name} onChange={(e) => setName(e.target.value)} />
+                )}
+              </FormField>
+              <FormField label="Topic">
+                {(field) => (
+                  <Textarea
+                    {...field}
+                    rows={3}
+                    maxLength={1024}
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                  />
+                )}
+              </FormField>
+              <div className="grid gap-2">
+                <Label htmlFor="channel-category">Category</Label>
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger id="channel-category" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>No category</SelectItem>
+                    {categories.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => move(-1)}
+                  disabled={busy}
+                >
+                  Move up
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => move(1)}
+                  disabled={busy}
+                >
+                  Move down
+                </Button>
+              </div>
+              <DialogFooter className="sm:justify-between">
+                <Button type="button" variant="destructive" onClick={remove} disabled={busy}>
+                  Delete channel
+                </Button>
+                <Button type="submit" disabled={busy}>
+                  {busy ? "Saving…" : "Save"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

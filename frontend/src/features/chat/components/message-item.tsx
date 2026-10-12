@@ -1,6 +1,6 @@
 "use client";
 
-import { CornerUpLeft, Pencil, Pin, PinOff, Reply, RotateCw, Trash2 } from "lucide-react";
+import { CornerUpLeft, Flag, Pencil, Pin, PinOff, Reply, RotateCw, Trash2 } from "lucide-react";
 import { useState, type KeyboardEvent } from "react";
 import { toast } from "sonner";
 
@@ -25,9 +25,12 @@ import {
   mentionsToMarkdown,
   type Mentionables,
 } from "../mentions";
+import { PollCard } from "@/features/polls/components/poll-card";
+
 import { Attachments } from "./attachments";
 import { EmojiPicker } from "./emoji-picker";
 import { Markdown, type MentionStyle } from "./markdown";
+import { ReportDialog } from "./report-dialog";
 
 const time = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" });
 const dateTime = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -133,6 +136,7 @@ export function MessageItem({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [revealed, setRevealed] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const created = new Date(message.created_at);
   const author = message.author;
   const name = author ? author.display_name || author.username : "Deleted User";
@@ -280,6 +284,14 @@ export function MessageItem({
             </div>
           )}
           <Attachments items={message.attachments} />
+          {message.poll ? (
+            <PollCard
+              message={message}
+              poll={message.poll}
+              conversation={ctx.conversation}
+              canClose={mine || ctx.canManageMessages}
+            />
+          ) : null}
           <Reactions message={message} ctx={ctx} />
         </div>
       </div>
@@ -327,6 +339,16 @@ export function MessageItem({
               <Pencil className="size-4" aria-hidden />
             </button>
           ) : null}
+          {!mine && author ? (
+            <button
+              type="button"
+              onClick={() => setReporting(true)}
+              aria-label="Report message"
+              className="p-1.5 hover:bg-accent"
+            >
+              <Flag className="size-4" aria-hidden />
+            </button>
+          ) : null}
           {canDelete ? (
             <button
               type="button"
@@ -349,6 +371,9 @@ export function MessageItem({
             <Trash2 className="size-4" aria-hidden />
           </button>
         </div>
+      ) : null}
+      {reporting ? (
+        <ReportDialog messageId={message.id} open={reporting} onOpenChange={setReporting} />
       ) : null}
     </article>
   );

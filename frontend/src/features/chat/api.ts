@@ -208,11 +208,19 @@ export type UploadedAttachment = {
   localUrl: string | null;
 };
 
+export type PollInput = {
+  question: string;
+  options: string[];
+  allow_multiple: boolean;
+  duration_minutes: number | null;
+};
+
 export type SendInput = {
   content: string;
   nonce: string;
   replyTo?: ChatMessage | null;
   attachments?: UploadedAttachment[];
+  poll?: PollInput | null;
 };
 
 export function replyPreview(message: ChatMessage): ReplyPreview {
@@ -231,10 +239,11 @@ export function useSendMessage(c: Conversation, author: Message["author"]) {
   const key = messageKeys.of(c);
 
   return useMutation({
-    mutationFn: async ({ content, nonce, replyTo, attachments }: SendInput) => {
+    mutationFn: async ({ content, nonce, replyTo, attachments, poll }: SendInput) => {
       const body = {
         content,
         nonce,
+        poll: poll ?? null,
         reply_to: replyTo?.id ?? null,
         attachments:
           attachments?.map((a) => ({ public_id: a.publicId, filename: a.filename })) ?? [],
@@ -252,13 +261,13 @@ export function useSendMessage(c: Conversation, author: Message["author"]) {
       if (!data) throw new Error("Empty response");
       return data as ChatMessage;
     },
-    onMutate: ({ content, nonce, replyTo, attachments = [] }) => {
+    onMutate: ({ content, nonce, replyTo, attachments = [], poll }) => {
       const optimistic: ChatMessage = {
         id: `pending-${nonce}`,
         channel_id: c.kind === "channel" ? c.id : null,
         dm_id: c.kind === "dm" ? c.id : null,
         author,
-        type: replyTo ? "reply" : "default",
+        type: poll ? "poll" : replyTo ? "reply" : "default",
         content,
         nonce,
         created_at: new Date().toISOString(),
@@ -280,6 +289,18 @@ export function useSendMessage(c: Conversation, author: Message["author"]) {
         mentions: [],
         mention_roles: [],
         mention_everyone: false,
+        poll: poll
+          ? {
+              id: `pending-${nonce}`,
+              question: poll.question,
+              allow_multiple: poll.allow_multiple,
+              closes_at: null,
+              closed_at: null,
+              options: poll.options.map((text, i) => ({ id: -1 - i, text, votes: 0 })),
+              total_voters: 0,
+              my_votes: [],
+            }
+          : null,
         pending: true,
       };
       queryClient.setQueryData<Pages>(key, (old) =>

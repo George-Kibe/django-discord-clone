@@ -4,6 +4,7 @@ import { BadgeCheck, MailWarning } from "lucide-react";
 
 import { Separator } from "@/components/ui/separator";
 import { ResendVerificationButton } from "@/features/auth/components/resend-verification";
+import { AccountDangerZone } from "@/features/profile/components/account-danger-zone";
 import { EmailChangeForm } from "@/features/profile/components/email-change-form";
 import { PasswordChangeForm } from "@/features/profile/components/password-change-form";
 import { useMe } from "@/lib/auth/session";
@@ -53,6 +54,8 @@ export function AccountSettings() {
         </div>
         <PasswordChangeForm />
       </section>
+      <Separator />
+      <AccountDangerZone />
     </div>
   );
 }

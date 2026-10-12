@@ -28,6 +28,10 @@ export function setBrowserNotificationsEnabled(on: boolean): void {
 /** Where a notification leads: the DM or the channel it came from. */
 export function notificationHref(n: Pick<AppNotification, "data">): string {
   const data = n.data as Record<string, string | undefined>;
+  if (data.export_id)
+    return data.dm_id
+      ? `/channels/me/${data.dm_id}`
+      : `/channels/${data.server_id}/${data.channel_id}`;
   if (data.dm_id) return `/channels/me/${data.dm_id}`;
   if (data.server_id && data.channel_id) return `/channels/${data.server_id}/${data.channel_id}`;
   return "/channels/me";
@@ -48,6 +52,11 @@ export function describe(n: AppNotification): { title: string; body: string } {
   const body = plainText(String(data.content ?? ""));
   if (n.type === "mention") return { title: `${actor} mentioned you${where}`, body };
   if (n.type === "reply") return { title: `${actor} replied to you${where}`, body };
+  if (n.type === "export_ready")
+    return {
+      title: `Your transcript of ${data.channel_name ? `#${data.channel_name}` : data.label} is ready`,
+      body: `${data.message_count ?? 0} messages · the download link is valid for 24 hours`,
+    };
   const count = Number(data.count ?? 1);
   const group = data.dm_name ? ` in ${data.dm_name}` : "";
   return {

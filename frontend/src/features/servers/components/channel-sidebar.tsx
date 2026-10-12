@@ -147,7 +147,16 @@ function ServerMenu({
             <UserPlus aria-hidden /> Invite people
           </DropdownMenuItem>
         ) : null}
-        {server.me.is_owner || hasPerm(perms, "MANAGE_SERVER") || hasPerm(perms, "MANAGE_ROLES") ? (
+        {server.me.is_owner ||
+        (
+          [
+            "MANAGE_SERVER",
+            "MANAGE_ROLES",
+            "KICK_MEMBERS",
+            "BAN_MEMBERS",
+            "VIEW_AUDIT_LOG",
+          ] as const
+        ).some((p) => hasPerm(perms, p)) ? (
           <DropdownMenuItem asChild>
             <Link href={`/servers/${server.id}/settings`}>
               <Settings aria-hidden /> Server settings

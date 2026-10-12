@@ -3,6 +3,7 @@
 import { Bell, CheckCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -11,6 +12,8 @@ import { UserAvatar } from "@/components/user-avatar";
 import { cn } from "@/lib/utils";
 
 import { unreadCount, useInbox, useMarkRead, type AppNotification } from "../api";
+import { downloadExport } from "@/features/exports/api";
+
 import { describe, notificationHref } from "../browser";
 
 const relative = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
@@ -69,6 +72,13 @@ export function InboxButton() {
   function openItem(n: AppNotification) {
     if (!n.read_at) markRead.mutate([n.id]);
     setOpen(false);
+    const exportId = (n.data as { export_id?: string }).export_id;
+    if (exportId) {
+      downloadExport(exportId).catch((e: unknown) =>
+        toast.error(e instanceof Error ? e.message : "Couldn't download the transcript."),
+      );
+      return;
+    }
     router.push(notificationHref(n));
   }
 

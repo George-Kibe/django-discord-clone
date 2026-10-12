@@ -27,6 +27,7 @@ const msg = (id: string, extra: Partial<ChatMessage> = {}): ChatMessage => ({
   mentions: [],
   mention_roles: [],
   mention_everyone: false,
+  poll: null,
   ...extra,
 });
 

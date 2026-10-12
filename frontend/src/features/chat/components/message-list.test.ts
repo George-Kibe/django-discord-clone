@@ -20,6 +20,7 @@ const at = (author: string | null, iso: string): ChatMessage => ({
   mentions: [],
   mention_roles: [],
   mention_everyone: false,
+  poll: null,
 });
 
 describe("isGrouped", () => {

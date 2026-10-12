@@ -115,11 +115,16 @@ test.describe("rich messaging & DMs (Phase 5)", () => {
     await sharedServer(owner.page, guest.page, "DM Club");
     await owner.page.goto("/channels/me");
 
-    // Guest opens a DM from the owner's profile card.
-    await live(guest.page, "member-list")
-      .getByRole("button", { name: new RegExp(owner.user.username) })
-      .click();
-    await guest.page.getByTestId("profile-card").getByRole("button", { name: "Message" }).click();
+    // Guest opens a DM from the owner's profile card (re-open it if a live refresh closed it).
+    await expect(async () => {
+      await live(guest.page, "member-list")
+        .getByRole("button", { name: new RegExp(owner.user.username) })
+        .click();
+      await guest.page
+        .getByTestId("profile-card")
+        .getByRole("button", { name: "Message" })
+        .click({ timeout: 3000 });
+    }).toPass({ timeout: 30_000 });
     // First visit compiles the DM route in dev mode: allow extra time.
     await expect(live(guest.page, "channel-title")).toHaveText(owner.user.username, {
       timeout: 30_000,

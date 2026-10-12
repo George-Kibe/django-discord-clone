@@ -7,6 +7,8 @@ import { useParams } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { hasPerm } from "@/lib/permissions";
 import { useServer } from "@/features/servers/api";
+import { AuditLogTab } from "@/features/servers/components/settings/audit-log-tab";
+import { BansTab } from "@/features/servers/components/settings/bans-tab";
 import { DangerTab } from "@/features/servers/components/settings/danger-tab";
 import { InvitesTab } from "@/features/servers/components/settings/invites-tab";
 import { MembersTab } from "@/features/servers/components/settings/members-tab";
@@ -35,6 +37,18 @@ export function ServerSettings() {
     },
     { id: "members", label: "Members", show: true, node: <MembersTab server={server} /> },
     { id: "invites", label: "Invites", show: true, node: <InvitesTab server={server} /> },
+    {
+      id: "bans",
+      label: "Bans",
+      show: hasPerm(perms, "BAN_MEMBERS"),
+      node: <BansTab server={server} />,
+    },
+    {
+      id: "audit",
+      label: "Audit log",
+      show: hasPerm(perms, "VIEW_AUDIT_LOG"),
+      node: <AuditLogTab server={server} />,
+    },
     {
       id: "danger",
       label: "Ownership",

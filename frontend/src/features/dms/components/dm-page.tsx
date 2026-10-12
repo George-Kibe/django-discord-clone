@@ -9,6 +9,7 @@ import { PresenceDot } from "@/components/presence-dot";
 import { UserAvatar } from "@/components/user-avatar";
 import { ChatView } from "@/features/chat/components/chat-view";
 import { PinsButton } from "@/features/chat/components/pins-button";
+import { ExportButton } from "@/features/exports/components/export-button";
 import { SearchPanel } from "@/features/chat/components/search-panel";
 import type { Mentionables } from "@/features/chat/mentions";
 import { MuteButton } from "@/features/notifications/components/mute-button";
@@ -193,6 +194,7 @@ export function DMPage() {
             ) : null}
             <MuteButton target={{ type: "dm", id: dm.id }} />
             <PinsButton conversation={{ kind: "dm", id: dm.id }} />
+            <ExportButton conversation={{ kind: "dm", id: dm.id }} label={name} />
             <button
               type="button"
               onClick={() => setSearching((s) => !s)}

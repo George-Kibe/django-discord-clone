@@ -14,7 +14,8 @@ pytestmark = pytest.mark.django_db
 @pytest.fixture
 def people(make_user, server, join, user):
     """``user`` (owner) plus ana and bo, all in one server; ``loner`` shares nothing."""
-    ana, bo = make_user(username="ana"), make_user(username="bo")
+    ana = make_user(username="ana", display_name="Ana")
+    bo = make_user(username="bo", display_name="Bo")
     join(server, ana)
     join(server, bo)
     return {"me": user, "ana": ana, "bo": bo, "loner": make_user(username="loner")}

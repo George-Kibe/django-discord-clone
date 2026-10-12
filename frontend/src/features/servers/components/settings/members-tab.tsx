@@ -2,16 +2,77 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { Crown } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { UserAvatar } from "@/components/user-avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
+import { useMe } from "@/lib/auth/session";
 import { hasPerm } from "@/lib/permissions";
 
-import { keys, useMembers, useRoles, type Member, type ServerDetail } from "../../api";
+import { Button } from "@/components/ui/button";
+
+import {
+  keys,
+  useMembers,
+  useModeration,
+  useRoles,
+  type Member,
+  type ServerDetail,
+} from "../../api";
 import { displayName, roleColor } from "../member-list";
+import { ModerateDialog } from "./moderate-dialog";
+
+function ModerationButtons({
+  server,
+  member,
+  myTop,
+}: {
+  server: ServerDetail;
+  member: Member;
+  myTop: number;
+}) {
+  const { data: roles = [] } = useRoles(server.id);
+  const { kick, ban } = useModeration(server.id);
+  const [action, setAction] = useState<"kick" | "ban" | null>(null);
+  const { data: me } = useMe();
+  const targetTop = Math.max(
+    0,
+    ...roles.filter((r) => member.role_ids.includes(r.id)).map((r) => r.position ?? 0),
+  );
+  const outranks = !member.is_owner && member.user.id !== me?.id && targetTop < myTop;
+  const canKick = hasPerm(server.me.permissions, "KICK_MEMBERS") && outranks;
+  const canBan = hasPerm(server.me.permissions, "BAN_MEMBERS") && outranks;
+  if (!canKick && !canBan) return null;
+  const name = displayName(member);
+  return (
+    <div className="flex gap-2">
+      {canKick ? (
+        <Button size="sm" variant="outline" onClick={() => setAction("kick")}>
+          Kick
+        </Button>
+      ) : null}
+      {canBan ? (
+        <Button size="sm" variant="destructive" onClick={() => setAction("ban")}>
+          Ban
+        </Button>
+      ) : null}
+      {action ? (
+        <ModerateDialog
+          action={action}
+          name={name}
+          open
+          onOpenChange={(o) => !o && setAction(null)}
+          onConfirm={(reason) =>
+            (action === "kick" ? kick : ban).mutateAsync({ userId: member.user.id, reason })
+          }
+        />
+      ) : null}
+    </div>
+  );
+}
 
 export function MembersTab({ server }: { server: ServerDetail }) {
   const queryClient = useQueryClient();
@@ -77,10 +138,17 @@ export function MembersTab({ server }: { server: ServerDetail }) {
                   }
                   onCheckedChange={(checked) => void toggle(member, role.id, checked === true)}
                 />
-                <span style={{ color: roleColor(role.color) }}>{role.name}</span>
+                {/* Role colour as a dot: coloured text fails contrast for many role colours. */}
+                <span
+                  className="size-2 rounded-full bg-muted-foreground"
+                  style={{ background: roleColor(role.color) }}
+                  aria-hidden
+                />
+                <span>{role.name}</span>
               </label>
             ))}
           </fieldset>
+          <ModerationButtons server={server} member={member} myTop={myTop} />
         </li>
       ))}
     </ul>

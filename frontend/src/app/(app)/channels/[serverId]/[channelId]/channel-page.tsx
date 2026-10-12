@@ -2,9 +2,9 @@
 
 import { Hash, Search } from "lucide-react";
 import { useParams } from "next/navigation";
-import { useMemo } from "react";
 
 import { ChatView } from "@/features/chat/components/chat-view";
+import { ExportButton } from "@/features/exports/components/export-button";
 import { PinsButton } from "@/features/chat/components/pins-button";
 import type { Mentionables } from "@/features/chat/mentions";
 import { MuteButton } from "@/features/notifications/components/mute-button";
@@ -23,26 +23,20 @@ export function ChannelPage() {
   const channel = channels?.find((c) => c.id === channelId);
   const canEveryone = hasPerm(channel?.permissions, "MENTION_EVERYONE");
 
-  const mentionables = useMemo<Mentionables>(
-    () => ({
-      users: members.map((m) => ({
-        id: m.user.id,
-        username: m.user.username,
-        display_name: m.nickname || m.user.display_name,
-        avatar_url: m.user.avatar_url,
-      })),
-      roles: roles
-        .filter((r) => !r.is_default && (r.mentionable || canEveryone))
-        .map((r) => ({ id: r.id, name: r.name, color: r.color })),
-      everyone: canEveryone,
-    }),
-    [members, roles, canEveryone],
-  );
-  const mentionStyle = useMemo(
-    () => ({ roleColors: new Map(roles.map((r) => [r.id, r.color ?? 0])) }),
-    [roles],
-  );
-  const myRoleIds = useMemo(() => new Set(server.me.role_ids), [server.me.role_ids]);
+  const mentionables: Mentionables = {
+    users: members.map((m) => ({
+      id: m.user.id,
+      username: m.user.username,
+      display_name: m.nickname || m.user.display_name,
+      avatar_url: m.user.avatar_url,
+    })),
+    roles: roles
+      .filter((r) => !r.is_default && (r.mentionable || canEveryone))
+      .map((r) => ({ id: r.id, name: r.name, color: r.color })),
+    everyone: canEveryone,
+  };
+  const mentionStyle = { roleColors: new Map(roles.map((r) => [r.id, r.color ?? 0])) };
+  const myRoleIds = new Set(server.me.role_ids);
 
   if (isPending) return <div className="flex-1" role="status" aria-label="Loading channel" />;
   if (!channel) {
@@ -70,6 +64,12 @@ export function ChannelPage() {
         <>
           <MuteButton target={{ type: "channel", id: channel.id }} />
           <PinsButton conversation={{ kind: "channel", id: channel.id }} />
+          {hasPerm(channel.permissions, "EXPORT_TRANSCRIPTS") ? (
+            <ExportButton
+              conversation={{ kind: "channel", id: channel.id }}
+              label={`#${channel.name}`}
+            />
+          ) : null}
           <button
             type="button"
             onClick={() => setPanel(panel === "search" ? "members" : "search")}

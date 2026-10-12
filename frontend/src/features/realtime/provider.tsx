@@ -24,6 +24,7 @@ import {
   type Pages,
 } from "@/features/chat/api";
 import { dmKeys, type DMConversation } from "@/features/dms/api";
+import { applyPollUpdate, patchPoll } from "@/features/polls/api";
 import {
   markReadLocally,
   notificationKeys,
@@ -93,6 +94,7 @@ export type EventContext = {
   leaveServer: (id: string, reason: string) => void;
   leaveDM?: (id: string) => void;
   onNotification?: (notification: AppNotification) => void;
+  onExportFailed?: () => void;
 };
 
 /** Applies one gateway event to the client caches (ADR-024: hot paths patch, the rest refetch). */
@@ -133,6 +135,23 @@ export function applyEvent(queryClient: QueryClient, event: GatewayEvent, ctx: E
       );
       return;
     }
+    case "poll.updated": {
+      const { message_id, poll, voter_id, voter_option_ids } = event.data;
+      queryClient.setQueryData<Pages>(messageKeys.of(conversationOf(event.data)), (old) =>
+        patchPoll(old, message_id, (current) =>
+          applyPollUpdate(current, poll, {
+            isMe: voter_id === ctx.myId,
+            optionIds: voter_option_ids,
+          }),
+        ),
+      );
+      return;
+    }
+    case "export.ready":
+      return; // announced through its inbox notification
+    case "export.failed":
+      ctx.onExportFailed?.();
+      return;
     case "pins.updated":
       void queryClient.invalidateQueries({
         queryKey: messageKeys.pins(conversationOf(event.data)),
@@ -236,27 +255,21 @@ export function applyEvent(queryClient: QueryClient, event: GatewayEvent, ctx: E
 }
 
 /** After a reconnect: catch up on whatever happened while the socket was down. */
-/** Data that changes from events alone: anything fetched before `ready` may already be stale. */
-const LIVE_ROOTS = new Set(["read-states", "notifications", "dms"]);
-
 /**
- * Catch up on what happened while we weren't subscribed. After a reconnect everything is
- * refetched; on the first connect only live data is (it may have changed between the initial
- * fetches and `ready`). Loaded conversations are backfilled rather than reloaded.
+ * Catch up on what happened while we weren't subscribed: refetch everything and backfill loaded
+ * conversations. Also runs on the *first* `ready`: anything fetched before the gateway
+ * subscribed may already be stale (a channel created, a message sent, a badge bumped in between).
  */
-export async function resync(queryClient: QueryClient, { full }: { full: boolean }) {
+export async function resync(queryClient: QueryClient) {
   typingStore.clear();
-  if (full) presenceStore.clear(); // member lists are refetched below
+  presenceStore.clear(); // member lists are refetched below
   const isMessages = (key: readonly unknown[]) =>
     key.length === 3 && key[2] === "messages" && (key[0] === "channels" || key[0] === "dms");
-  const isMembers = (key: readonly unknown[]) => key[0] === "servers" && key[2] === "members";
   const messageQueries = queryClient
     .getQueryCache()
     .findAll({ predicate: (query) => isMessages(query.queryKey) });
   void queryClient.invalidateQueries({
-    predicate: ({ queryKey }) =>
-      !isMessages(queryKey) && // messages are backfilled instead
-      (full || LIVE_ROOTS.has(String(queryKey[0])) || isMembers(queryKey)),
+    predicate: ({ queryKey }) => !isMessages(queryKey), // messages are backfilled instead
   });
   await Promise.all(
     messageQueries.map(({ queryKey }) =>
@@ -281,7 +294,6 @@ export function RealtimeProvider({ myId, children }: { myId: string; children: R
   });
 
   useEffect(() => {
-    let connectedBefore = false;
     const leaveServer = (id: string, reason: string) => {
       if (latest.current.serverId !== id) return;
       toast.info(reason);
@@ -305,8 +317,7 @@ export function RealtimeProvider({ myId, children }: { myId: string; children: R
       },
       onEvent: (event) => {
         if (event.type === "ready") {
-          void resync(queryClient, { full: connectedBefore });
-          connectedBefore = true;
+          void resync(queryClient);
         }
         applyEvent(queryClient, event, {
           myId,
@@ -314,6 +325,7 @@ export function RealtimeProvider({ myId, children }: { myId: string; children: R
           leaveServer,
           leaveDM,
           onNotification,
+          onExportFailed: () => toast.error("Your transcript export failed. Please try again."),
         });
       },
     });

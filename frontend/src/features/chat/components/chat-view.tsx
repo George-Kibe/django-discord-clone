@@ -204,6 +204,8 @@ export function ChatView({
         replyTo={replyTo}
         onCancelReply={() => setReplyTo(null)}
         onTyping={typing}
+        canCreatePolls={hasPerm(permissions, "CREATE_POLLS") && canSend}
+        onSendPoll={(poll) => send.mutate({ content: "", nonce: newNonce(), poll })}
         onSend={(content, attachments) => {
           lastTyping.current = 0; // the next keystroke signals typing again right away
           send.mutate({ content, nonce: newNonce(), replyTo, attachments });
