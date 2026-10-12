@@ -13,6 +13,7 @@ class Notification(UUIDModel):
         MENTION = "mention", "Mention"
         REPLY = "reply", "Reply"
         DM = "dm", "Direct message"
+        EXPORT_READY = "export_ready", "Export ready"
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications"

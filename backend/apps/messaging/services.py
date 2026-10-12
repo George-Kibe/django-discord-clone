@@ -79,7 +79,13 @@ def reaction_summaries(
 
 
 def serialize(messages: list[Message], user: User | None) -> list[dict[str, Any]]:
-    context = {"reactions": reaction_summaries([m.pk for m in messages], user)}
+    from apps.polls.services import summaries as poll_summaries
+
+    ids = [m.pk for m in messages]
+    context = {
+        "reactions": reaction_summaries(ids, user),
+        "polls": poll_summaries(ids, user),
+    }
     return list(MessageSerializer(messages, many=True, context=context).data)
 
 
@@ -309,9 +315,12 @@ def send_message(
     nonce: str | None = None,
     reply_to: Any = None,
     attachments: list[dict[str, Any]] | None = None,
+    poll: dict[str, Any] | None = None,
 ) -> tuple[Message, bool]:
     """Returns (message, created). A repeated nonce returns the original message (FR-MSG-11)."""
     target.require(Perm.SEND_MESSAGES)
+    if poll:
+        target.require(Perm.CREATE_POLLS)
     nonce = nonce or None
     if nonce:
         existing = Message.objects.filter(author=author, nonce=nonce).first()
@@ -331,12 +340,22 @@ def send_message(
                 content=content,
                 nonce=nonce,
                 reply_to=parent,
-                type=Message.Type.REPLY if parent is not None else Message.Type.DEFAULT,
+                type=(
+                    Message.Type.POLL
+                    if poll
+                    else Message.Type.REPLY
+                    if parent is not None
+                    else Message.Type.DEFAULT
+                ),
                 mention_everyone=parsed.everyone,
             )
     except IntegrityError:  # concurrent retry with the same nonce
         return refetch(Message.objects.get(author=author, nonce=nonce)), False
     _attach(target, author, message, attachments or [])
+    if poll:
+        from apps.polls import services as polls
+
+        polls.create(message, **poll)
     Mention.objects.bulk_create(
         [Mention(message=message, user_id=uid) for uid in parsed.user_ids]
         + [Mention(message=message, role=role) for role in parsed.roles]
@@ -401,6 +420,21 @@ def delete_message(target: Target, message: Message) -> None:
     if message.author_id != target.user.pk and not target.has(Perm.MANAGE_MESSAGES):
         raise exceptions.PermissionDenied(
             "You can only delete your own messages.", code="not_author"
+        )
+    if message.author_id != target.user.pk and target.channel is not None:
+        from apps.servers import audit
+
+        audit.record(
+            target.channel.server_id,
+            target.user,
+            audit.Action.MESSAGE_DELETE,
+            target_type="message",
+            target_id=message.pk,
+            label=f"#{target.channel.name}",
+            changes={
+                "author": message.author.username if message.author else None,
+                "content": message.content[:500],
+            },
         )
     was_pinned = message.pinned_at is not None
     message.deleted_at = timezone.now()
@@ -598,3 +632,26 @@ def search(
 
 def channel_search_target(user: User, channel_id: Any) -> Target:
     return channel_target(user, channel_id)
+
+
+# ---------------------------------------------------------------------------- reports
+
+
+def report(target: Target, message: Message, reason: str) -> None:
+    """FR-MOD-03: flag a message for site staff (Django admin)."""
+    from .models import MessageReport
+
+    if message.author_id == target.user.pk:
+        raise exceptions.ValidationError({"message": ["You can't report your own message."]})
+    try:
+        with transaction.atomic():
+            MessageReport.objects.create(
+                message=message,
+                reporter=target.user,
+                reason=reason.strip(),
+                content_snapshot=message.content,
+            )
+    except IntegrityError:
+        raise exceptions.ValidationError(
+            {"message": ["You already reported this message."]}, code="already_reported"
+        ) from None

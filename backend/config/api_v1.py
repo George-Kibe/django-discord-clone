@@ -4,10 +4,11 @@ from django.urls import include, path
 
 from apps.chat_channels import urls as channel_urls
 from apps.chat_channels.views import ReadStateListView
+from apps.exports import urls as export_urls
 from apps.messaging import urls as message_urls
 from apps.messaging.views import ContactsView
 from apps.servers import urls as server_urls
-from apps.servers.views import ServerListView, TopicListView
+from apps.servers.views import DiscoverView, ServerListView, TopicListView
 
 urlpatterns = [
     path("", include("apps.core.urls")),
@@ -26,6 +27,10 @@ urlpatterns = [
     ),
     path("invites/", include(server_urls.invite_urlpatterns)),
     path("topics", TopicListView.as_view(), name="topics"),
+    path("discover/servers", DiscoverView.as_view(), name="discover-servers"),
+    path("polls/", include("apps.polls.urls")),
+    path("exports", include(export_urls.list_urlpatterns)),
+    path("exports/", include(export_urls.detail_urlpatterns)),
     path("categories/", include(channel_urls.category_urlpatterns)),
     path("channels/", include(channel_urls.channel_urlpatterns + message_urls.channel_urlpatterns)),
     path("messages/", include(message_urls.message_urlpatterns)),

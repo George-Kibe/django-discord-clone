@@ -61,6 +61,7 @@ class Message(BaseModel):
     class Type(models.TextChoices):
         DEFAULT = "default", "Default"
         REPLY = "reply", "Reply"
+        POLL = "poll", "Poll"
         SYSTEM = "system", "System"
 
     channel = models.ForeignKey(
@@ -179,3 +180,36 @@ class Mention(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user_id or self.role_id}"
+
+
+class MessageReport(models.Model):
+    """A user flags a message for site staff (FR-MOD-03). Handled in Django admin."""
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Open"
+        RESOLVED = "resolved", "Resolved"
+        DISMISSED = "dismissed", "Dismissed"
+
+    message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name="reports")
+    reporter = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="reports"
+    )
+    reason = models.CharField(max_length=1000)
+    # Snapshot: the author may edit or delete the message after it was reported.
+    content_snapshot = models.TextField(blank=True)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.OPEN)
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["message", "reporter"],
+                condition=Q(status="open"),
+                name="one_open_report_per_reporter",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"report {self.pk} on {self.message_id}"

@@ -1,6 +1,9 @@
+import json
 from typing import Any
 from uuid import UUID
 
+from django.core.serializers.json import DjangoJSONEncoder
+from django.http import HttpResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
 from drf_spectacular.utils import OpenApiResponse, extend_schema
@@ -16,7 +19,7 @@ from apps.media import services as media
 from apps.media.tasks import delete_asset
 from apps.realtime import notify
 
-from . import blocks, services
+from . import blocks, lifecycle, services
 from .authentication import enforce_csrf, user_from_access_token
 from .cookies import ACCESS_COOKIE, REFRESH_COOKIE, clear_auth_cookies, set_auth_cookies
 from .exceptions import TokenNotValid
@@ -319,3 +322,38 @@ class BlockDetailView(APIView):
     def delete(self, request: Request, user_id: UUID) -> Response:
         blocks.unblock(current_user(request), user_id)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ---------------------------------------------------------------------------- account lifecycle
+
+
+class DeleteAccountSerializer(serializers.Serializer[dict[str, Any]]):
+    password = serializers.CharField(max_length=128, trim_whitespace=False)
+
+
+class AccountDeleteView(APIView):
+    @extend_schema(
+        request=DeleteAccountSerializer,
+        responses={204: None},
+        tags=USER_TAGS,
+        summary="Delete your account (messages stay as Deleted User)",
+    )
+    def post(self, request: Request) -> Response:
+        serializer = DeleteAccountSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        lifecycle.delete_account(
+            current_user(request), serializer.validated_data["password"], request._request
+        )
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        clear_auth_cookies(response)
+        return response
+
+
+class DataExportView(APIView):
+    @extend_schema(responses={(200, "application/json"): dict}, tags=USER_TAGS)
+    def get(self, request: Request) -> HttpResponse:
+        user = current_user(request)
+        body = json.dumps(lifecycle.export_data(user), cls=DjangoJSONEncoder, indent=2)
+        response = HttpResponse(body, content_type="application/json")
+        response["Content-Disposition"] = f'attachment; filename="{user.username}-data.json"'
+        return response

@@ -14,8 +14,9 @@ from apps.media import services as media
 from apps.media.tasks import delete_asset
 from apps.realtime import events
 
+from . import audit
 from .access import ServerAccess
-from .models import Invite, Member, Role, Server
+from .models import Ban, Invite, Member, Role, Server
 
 
 class Conflict(exceptions.APIException):
@@ -91,6 +92,9 @@ def update_server(access: ServerAccess, data: dict[str, Any]) -> Server:
     for key, value in data.items():
         setattr(server, key, value)
     server.save()
+    audit.record(
+        server.pk, access.user, audit.Action.SERVER_UPDATE, label=server.name, changes=data
+    )
     events.server_changed(server.pk, "server.updated")
     return server
 
@@ -122,7 +126,9 @@ def transfer_ownership(access: ServerAccess, new_owner_id: Any) -> Server:
 
 @transaction.atomic
 def add_member(server: Server, user: User) -> Member:
-    """Joins ``user`` to ``server`` (FR-SRV-05). 409 if already a member."""
+    """Joins ``user`` to ``server`` (FR-SRV-05). 409 if already a member, 403 if banned."""
+    if Ban.objects.filter(server=server, user=user).exists():
+        raise exceptions.PermissionDenied("You're banned from this server.", code="banned")
     try:
         with transaction.atomic():
             member = Member.objects.create(server=server, user=user)
@@ -175,6 +181,15 @@ def create_role(access: ServerAccess, data: dict[str, Any]) -> Role:
     role = Role.objects.create(
         server=access.server, position=1, **(data | {"permissions": permissions})
     )
+    audit.record(
+        access.server.pk,
+        access.user,
+        audit.Action.ROLE_CREATE,
+        target_type="role",
+        target_id=role.pk,
+        label=role.name,
+        changes=data | {"permissions": permissions},
+    )
     events.server_changed(access.server.pk, "role.created", id=str(role.pk))
     return role
 
@@ -197,9 +212,19 @@ def update_role(access: ServerAccess, role: Role, data: dict[str, Any]) -> Role:
         _manageable_role(access, role)
     if "permissions" in data:
         access.assert_grantable(int(data["permissions"]))
+    before = {key: getattr(role, key) for key in data}
     for key, value in data.items():
         setattr(role, key, value)
     role.save()
+    audit.record(
+        access.server.pk,
+        access.user,
+        audit.Action.ROLE_UPDATE,
+        target_type="role",
+        target_id=role.pk,
+        label=role.name,
+        changes={k: {"from": before[k], "to": v} for k, v in data.items() if before[k] != v},
+    )
     events.server_changed(access.server.pk, "role.updated", id=str(role.pk))
     return role
 
@@ -211,6 +236,14 @@ def delete_role(access: ServerAccess, role: Role) -> None:
     _manageable_role(access, role)
     role_id = str(role.pk)
     role.delete()
+    audit.record(
+        access.server.pk,
+        access.user,
+        audit.Action.ROLE_DELETE,
+        target_type="role",
+        target_id=role_id,
+        label=role.name,
+    )
     events.server_changed(access.server.pk, "role.deleted", id=role_id)
 
 
@@ -285,6 +318,18 @@ def update_member(access: ServerAccess, member: Member, data: dict[str, Any]) ->
             _manageable_role(access, server_roles[role_id])
         member.roles.set([server_roles[r] for r in wanted])
         events.membership_changed(member.user_id, access.server.pk)  # their permissions changed
+        audit.record(
+            access.server.pk,
+            access.user,
+            audit.Action.MEMBER_UPDATE,
+            target_type="user",
+            target_id=member.user_id,
+            label=member.user.username,
+            changes={
+                "roles_added": [server_roles[r].name for r in wanted - current],
+                "roles_removed": [server_roles[r].name for r in current - wanted],
+            },
+        )
     events.publish(
         events.server_group(access.server.pk),
         "member.updated",
@@ -306,13 +351,23 @@ def create_invite(
     for _ in range(5):  # retry the (astronomically unlikely) code collision
         try:
             with transaction.atomic():
-                return Invite.objects.create(
+                invite = Invite.objects.create(
                     server=access.server,
                     channel=channel,
                     inviter=access.user,
                     max_uses=max_uses or None,
                     expires_at=expires_at,
                 )
+            audit.record(
+                access.server.pk,
+                access.user,
+                audit.Action.INVITE_CREATE,
+                target_type="invite",
+                target_id=invite.code,
+                label=invite.code,
+                changes={"max_age": max_age, "max_uses": max_uses or None},
+            )
+            return invite
         except IntegrityError:
             continue
     raise Conflict("Couldn't create an invite. Try again.")
@@ -330,6 +385,14 @@ def revoke_invite(access: ServerAccess, invite: Invite) -> None:
         access.require(Perm.MANAGE_SERVER)
     invite.revoked_at = timezone.now()
     invite.save(update_fields=["revoked_at"])
+    audit.record(
+        access.server.pk,
+        access.user,
+        audit.Action.INVITE_REVOKE,
+        target_type="invite",
+        target_id=invite.code,
+        label=invite.code,
+    )
 
 
 def get_usable_invite(code: str) -> Invite:
@@ -352,3 +415,111 @@ def accept_invite(code: str, user: User) -> Server:
     invite.uses = F("uses") + 1
     invite.save(update_fields=["uses"])
     return server
+
+
+# ---------------------------------------------------------------------------- moderation
+
+
+def _require_outranks(access: ServerAccess, member: Member, verb: str) -> None:
+    """Owners can't be touched; others only by someone whose highest role is higher."""
+    if member.user_id == access.server.owner_id:
+        raise exceptions.PermissionDenied(
+            f"You can't {verb} the server owner.", code="role_hierarchy"
+        )
+    if member.user_id == access.user.pk:
+        raise exceptions.ValidationError({"user_id": [f"You can't {verb} yourself."]})
+    target_top = max((r.position for r in member.roles.all()), default=0)
+    if not access.is_owner and target_top >= access.top_position:
+        raise exceptions.PermissionDenied(
+            f"You can only {verb} members below your highest role.", code="role_hierarchy"
+        )
+
+
+def _remove_member(access: ServerAccess, member: Member) -> None:
+    member.delete()
+    Server.objects.filter(pk=access.server.pk).update(member_count=F("member_count") - 1)
+    events.publish(
+        events.server_group(access.server.pk),
+        "member.left",
+        {"server_id": str(access.server.pk), "user_id": str(member.user_id)},
+    )
+    events.membership_changed(member.user_id, access.server.pk)  # their sockets drop the server
+
+
+def _member(access: ServerAccess, user_id: Any) -> Member:
+    member = (
+        Member.objects.select_related("user")
+        .prefetch_related("roles")
+        .filter(server=access.server, user_id=user_id)
+        .first()
+    )
+    if member is None:
+        raise exceptions.NotFound("Not a member of this server.")
+    return member
+
+
+@transaction.atomic
+def kick(access: ServerAccess, user_id: Any, reason: str = "") -> None:
+    """FR-MOD-01: remove a member; they can rejoin with an invite."""
+    access.require(Perm.KICK_MEMBERS)
+    member = _member(access, user_id)
+    _require_outranks(access, member, "kick")
+    _remove_member(access, member)
+    audit.record(
+        access.server.pk,
+        access.user,
+        audit.Action.MEMBER_KICK,
+        target_type="user",
+        target_id=member.user_id,
+        label=member.user.username,
+        changes={"reason": reason} if reason else {},
+    )
+
+
+@transaction.atomic
+def ban(access: ServerAccess, user_id: Any, reason: str = "") -> Ban:
+    """FR-MOD-01: remove (if a member) and block rejoining until unbanned."""
+    access.require(Perm.BAN_MEMBERS)
+    target = User.objects.filter(pk=user_id).first()
+    if target is None:
+        raise exceptions.NotFound("Unknown user.")
+    member = (
+        Member.objects.prefetch_related("roles").filter(server=access.server, user=target).first()
+    )
+    if member is not None:
+        _require_outranks(access, member, "ban")
+    elif target.pk == access.server.owner_id or target.pk == access.user.pk:
+        raise exceptions.ValidationError({"user_id": ["You can't ban this user."]})
+    ban_row, _ = Ban.objects.update_or_create(
+        server=access.server,
+        user=target,
+        defaults={"moderator": access.user, "reason": reason},
+    )
+    if member is not None:
+        _remove_member(access, member)
+    audit.record(
+        access.server.pk,
+        access.user,
+        audit.Action.MEMBER_BAN,
+        target_type="user",
+        target_id=target.pk,
+        label=target.username,
+        changes={"reason": reason} if reason else {},
+    )
+    return ban_row
+
+
+def unban(access: ServerAccess, user_id: Any) -> None:
+    access.require(Perm.BAN_MEMBERS)
+    row = Ban.objects.select_related("user").filter(server=access.server, user_id=user_id).first()
+    if row is None:
+        raise exceptions.NotFound("That user isn't banned.")
+    row.delete()
+    audit.record(
+        access.server.pk,
+        access.user,
+        audit.Action.MEMBER_UNBAN,
+        target_type="user",
+        target_id=user_id,
+        label=row.user.username,
+    )
