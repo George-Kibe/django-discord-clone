@@ -31,6 +31,7 @@ DJANGO_APPS = [
     "django.contrib.messages",
     "whitenoise.runserver_nostatic",
     "django.contrib.staticfiles",
+    "django.contrib.postgres",
 ]
 THIRD_PARTY_APPS = [
     "channels",
@@ -47,6 +48,7 @@ LOCAL_APPS = [
     "apps.servers",
     "apps.chat_channels",
     "apps.messaging",
+    "apps.notifications",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
@@ -256,6 +258,25 @@ MEDIA_UPLOAD_RULES: dict[str, dict[str, Any]] = {
     # purpose: max bytes, allowed formats (FR-PROF-02, FR-MSG-10)
     "avatar": {"max_bytes": 5 * 1024 * 1024, "formats": ["jpg", "jpeg", "png", "webp", "gif"]},
     "server_icon": {"max_bytes": 5 * 1024 * 1024, "formats": ["jpg", "jpeg", "png", "webp", "gif"]},
+    # Images are stored as Cloudinary "image" resources (previews); everything else as "raw".
+    "attachment": {
+        "max_bytes": 10 * 1024 * 1024,
+        "formats": ["jpg", "jpeg", "png", "webp", "gif"],
+        "raw_formats": [
+            "pdf",
+            "txt",
+            "md",
+            "csv",
+            "json",
+            "zip",
+            "docx",
+            "xlsx",
+            "pptx",
+            "odt",
+            "mp3",
+            "mp4",
+        ],
+    },
 }
 PENDING_UPLOAD_TTL_HOURS = 24
 

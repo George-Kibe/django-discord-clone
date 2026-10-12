@@ -14,5 +14,6 @@ class SignUploadResponseSerializer(serializers.Serializer[dict[str, object]]):
     signature = serializers.CharField()
     public_id = serializers.CharField()
     timestamp = serializers.IntegerField()
-    allowed_formats = serializers.CharField()
+    allowed_formats = serializers.CharField(required=False, help_text="Images only.")
     overwrite = serializers.CharField()
+    resource_type = serializers.ChoiceField(choices=["image", "raw"])

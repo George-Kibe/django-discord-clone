@@ -227,6 +227,7 @@ def mark_read(user: Any, channel: Channel, message_id: Any) -> ReadState:
         "read_state.updated",
         {
             "channel_id": str(channel.pk),
+            "dm_id": None,
             "server_id": str(channel.server_id),
             "last_read_message_id": str(state.last_read_message_id),
             "mention_count": state.mention_count,
@@ -242,9 +243,10 @@ def read_states(user: Any) -> list[dict[str, Any]]:
         str(s.channel_id): s for s in ReadState.objects.filter(user=user, channel_id__in=visible)
     }
     rows = Channel.objects.filter(pk__in=visible).values("id", "server_id", "last_message_id")
-    return [
+    channel_rows = [
         {
             "channel_id": str(row["id"]),
+            "dm_id": None,
             "server_id": str(row["server_id"]),
             "last_message_id": row["last_message_id"],
             "last_read_message_id": getattr(
@@ -254,3 +256,17 @@ def read_states(user: Any) -> list[dict[str, Any]]:
         }
         for row in rows
     ]
+    from apps.messaging.models import DMParticipant  # messaging depends on this app
+
+    dm_rows = [
+        {
+            "channel_id": None,
+            "dm_id": str(p.conversation_id),
+            "server_id": None,
+            "last_message_id": p.conversation.last_message_id,
+            "last_read_message_id": p.last_read_message_id,
+            "mention_count": p.unread_count,
+        }
+        for p in DMParticipant.objects.filter(user=user).select_related("conversation")
+    ]
+    return channel_rows + dm_rows

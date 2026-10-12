@@ -131,3 +131,23 @@ class AuthAuditEvent(models.Model):
 
     def __str__(self) -> str:
         return f"{self.get_event_display()} ({self.email_attempted or self.user_id})"
+
+
+class BlockedUser(models.Model):
+    """``blocker`` no longer receives DMs from ``blocked`` and sees their messages collapsed
+    (FR-DM-04)."""
+
+    blocker = models.ForeignKey(User, on_delete=models.CASCADE, related_name="blocks")
+    blocked = models.ForeignKey(User, on_delete=models.CASCADE, related_name="blocked_by")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["blocker", "blocked"], name="unique_block"),
+            models.CheckConstraint(
+                condition=~models.Q(blocker=models.F("blocked")), name="no_self_block"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.blocker_id} blocks {self.blocked_id}"

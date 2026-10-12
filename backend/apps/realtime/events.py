@@ -28,6 +28,10 @@ def channel_group(channel_id: Any) -> str:
     return f"channel.{channel_id}"
 
 
+def dm_group(dm_id: Any) -> str:
+    return f"dm.{dm_id}"
+
+
 def _plain(data: Any) -> Any:
     """Serializer output -> msgpack-safe primitives (UUIDs, datetimes, OrderedDicts)."""
     return json.loads(json.dumps(data, cls=DjangoJSONEncoder))
@@ -56,6 +60,15 @@ def server_changed(server_id: Any, event: str, **data: Any) -> None:
     """A structural change in a server: notify viewers and let consumers re-check access."""
     publish(server_group(server_id), event, {"server_id": str(server_id), **data})
     control(server_group(server_id), "resync", server_id=str(server_id))
+
+
+def to_user(user_id: Any, event: str, data: Any) -> None:
+    publish(user_group(user_id), event, data)
+
+
+def dm_membership_changed(user_id: Any, dm_id: Any, joined: bool) -> None:
+    """A user was added to (or left) a DM: their open tabs join or leave its group."""
+    control(user_group(user_id), "dm_join" if joined else "dm_leave", dm_id=str(dm_id))
 
 
 def membership_changed(user_id: Any, server_id: Any) -> None:
