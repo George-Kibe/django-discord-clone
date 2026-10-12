@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { emailSchema } from "@/features/auth/schemas";
 import { api } from "@/lib/api/client";
 import { applyFieldErrors } from "@/lib/api/errors";
+import { useHydrated } from "@/lib/use-hydrated";
+import { cn } from "@/lib/utils";
 
 const schema = z.object({
   new_email: emailSchema,
@@ -25,6 +27,7 @@ export function EmailChangeForm() {
     resolver: zodResolver(schema),
     defaultValues: { new_email: "", password: "" },
   });
+  const hydrated = useHydrated();
   const { errors, isSubmitting } = form.formState;
 
   async function onSubmit(values: Values) {
@@ -39,7 +42,7 @@ export function EmailChangeForm() {
   }
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="grid gap-4">
+    <form method="post" onSubmit={form.handleSubmit(onSubmit)} noValidate className="grid gap-4">
       {sentTo ? (
         <FormMessage tone="success">
           We sent a confirmation link to <strong>{sentTo}</strong>. Your email changes once you open
@@ -63,7 +66,12 @@ export function EmailChangeForm() {
         )}
       </FormField>
       <div className="flex justify-end">
-        <Button type="submit" disabled={isSubmitting}>
+        <Button
+          type="submit"
+          disabled={isSubmitting || !hydrated}
+          // Before hydration it ignores clicks (no native submit) without looking disabled.
+          className={cn(!hydrated && "disabled:opacity-100")}
+        >
           {isSubmitting ? "Sending…" : "Change email"}
         </Button>
       </div>

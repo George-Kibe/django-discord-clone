@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api/client";
 import { applyFieldErrors } from "@/lib/api/errors";
 import { meQueryKey, safeNextPath } from "@/lib/auth/session";
+import { useHydrated } from "@/lib/use-hydrated";
+import { cn } from "@/lib/utils";
 
 import { loginSchema, type LoginValues } from "../schemas";
 
@@ -25,6 +27,7 @@ export function LoginForm() {
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
   });
+  const hydrated = useHydrated();
   const { errors, isSubmitting } = form.formState;
 
   async function onSubmit(values: LoginValues) {
@@ -40,7 +43,7 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="grid gap-4">
+    <form method="post" onSubmit={form.handleSubmit(onSubmit)} noValidate className="grid gap-4">
       {formError ? <FormMessage tone="error">{formError}</FormMessage> : null}
       <FormField label="Email" error={errors.email?.message}>
         {(field) => (
@@ -71,7 +74,12 @@ export function LoginForm() {
           Forgot your password?
         </Link>
       </div>
-      <Button type="submit" disabled={isSubmitting} className="w-full">
+      <Button
+        type="submit"
+        disabled={isSubmitting || !hydrated}
+        // Before hydration it ignores clicks (no native submit) without looking disabled.
+        className={cn("w-full", !hydrated && "disabled:opacity-100")}
+      >
         {isSubmitting ? "Signing in…" : "Sign in"}
       </Button>
     </form>

@@ -20,7 +20,8 @@ test.describe("community features (Phase 6)", () => {
     });
 
     await visitor.page.getByRole("link", { name: "Discover servers" }).click();
-    await visitor.page.getByTestId("discover-search").fill("stargazing telescopes".split(" ")[0]);
+    // Search by the unique name: earlier runs leave other public servers behind in dev.
+    await visitor.page.getByTestId("discover-search").fill(name);
     const card = visitor.page.getByTestId("discover-server").filter({ hasText: name });
     await expect(card).toContainText("1 member");
     await card.getByRole("button", { name: `Join ${name}` }).click();

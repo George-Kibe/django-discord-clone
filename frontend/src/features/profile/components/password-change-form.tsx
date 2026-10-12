@@ -14,6 +14,8 @@ import { passwordSchema } from "@/features/auth/schemas";
 import { api } from "@/lib/api/client";
 import { applyFieldErrors } from "@/lib/api/errors";
 import { meQueryKey } from "@/lib/auth/session";
+import { useHydrated } from "@/lib/use-hydrated";
+import { cn } from "@/lib/utils";
 
 const schema = z
   .object({
@@ -34,6 +36,7 @@ export function PasswordChangeForm() {
     resolver: zodResolver(schema),
     defaultValues: { current_password: "", new_password: "", confirm: "" },
   });
+  const hydrated = useHydrated();
   const { errors, isSubmitting } = form.formState;
 
   async function onSubmit({ current_password, new_password }: Values) {
@@ -51,7 +54,7 @@ export function PasswordChangeForm() {
   }
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="grid gap-4">
+    <form method="post" onSubmit={form.handleSubmit(onSubmit)} noValidate className="grid gap-4">
       {formError ? <FormMessage tone="error">{formError}</FormMessage> : null}
       <FormField label="Current password" error={errors.current_password?.message}>
         {(field) => (
@@ -88,7 +91,12 @@ export function PasswordChangeForm() {
         )}
       </FormField>
       <div className="flex justify-end">
-        <Button type="submit" disabled={isSubmitting}>
+        <Button
+          type="submit"
+          disabled={isSubmitting || !hydrated}
+          // Before hydration it ignores clicks (no native submit) without looking disabled.
+          className={cn(!hydrated && "disabled:opacity-100")}
+        >
           {isSubmitting ? "Saving…" : "Change password"}
         </Button>
       </div>

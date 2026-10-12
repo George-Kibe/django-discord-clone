@@ -330,7 +330,7 @@ describe("resync", () => {
       .findAll({ predicate: (q) => q.state.isInvalidated })
       .map((q) => q.queryKey.join("/"))
       .sort();
-    // The empty conversation is refetched by backfill itself.
-    expect(stale).toEqual(["channels/c1/messages", "me", "read-states", "servers/s1/channels"]);
+    // Messages are never invalidated (a stale refetch could drop messages sent meanwhile).
+    expect(stale).toEqual(["me", "read-states", "servers/s1/channels"]);
   });
 });

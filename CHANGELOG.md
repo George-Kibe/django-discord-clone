@@ -24,6 +24,8 @@ Phase 6: community features.
 - Reloading the page during a token refresh could sign you out. A just-rotated refresh token is now accepted for 30 seconds; password changes and logouts still revoke immediately.
 - Changes made right as the page loaded (before the live connection was ready) could be missed until a reload.
 - Role names in server settings failed colour-contrast checks.
+- Clicking a sign-in, registration or password form's button before the page finished loading could submit it natively, putting the password in the URL. Those forms now post and ignore early clicks.
+- A message sent while the app was catching up after connecting could briefly disappear from view.
 
 ## [0.6.0] - 2026-10-12
 
