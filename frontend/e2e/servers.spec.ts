@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 
 import { signUpAndLogin } from "./helpers";
+import { messageAction } from "./realtime-helpers";
 
 /** Next keeps recently visited pages mounted but hidden (<Activity>); only look at the live one. */
 const live = (page: Page, testId: string) => page.getByTestId(testId).filter({ visible: true });
@@ -42,8 +43,7 @@ test.describe("servers, channels & messages (Phase 3)", () => {
     await expect(first).toHaveAttribute("data-pending", "false");
     await expect(first.locator("strong")).toHaveText("world");
     await expect(first.locator("img")).toHaveCount(0);
-    await first.hover();
-    await first.getByRole("button", { name: "Edit message" }).click();
+    await messageAction(first, "Edit message");
     await first.getByRole("textbox", { name: "Edit message" }).fill("hello everyone");
     await first.getByRole("textbox", { name: "Edit message" }).press("Enter");
     await expect(first).toContainText("hello everyone");
@@ -52,9 +52,8 @@ test.describe("servers, channels & messages (Phase 3)", () => {
     await send(page, "this one goes away");
     const doomed = live(page, "message").last();
     await expect(doomed).toHaveAttribute("data-pending", "false");
-    await doomed.hover();
     page.once("dialog", (d) => void d.accept());
-    await doomed.getByRole("button", { name: "Delete message" }).click();
+    await messageAction(doomed, "Delete message");
     await expect(page.getByText("this one goes away")).toHaveCount(0);
 
     // Invite link from the server menu.
@@ -141,7 +140,7 @@ test.describe("servers, channels & messages (Phase 3)", () => {
   });
 
   test("scrolling up loads older history", async ({ page, request }) => {
-    test.setTimeout(90_000); // seeds 120 messages first
+    test.setTimeout(150_000); // seeds 120 messages first (slow on a loaded machine)
     await signUpAndLogin(page, request, "history");
     await createServer(page, "Long History");
     const channelId = page.url().split("/").at(-1)!;

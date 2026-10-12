@@ -24,29 +24,48 @@ import { TypingIndicator } from "./typing-indicator";
 
 const TYPING_EVERY_MS = 5000; // the server shows "typing" for 8 s per signal
 
-/** Marks the channel read while the newest message is on screen and the tab is visible. */
+const ACK_EVERY_MS = 1000;
+
+/**
+ * Marks the channel read while the newest message is on screen and the tab is visible.
+ * Throttled: a busy channel sends at most one ack per second (for the newest message then).
+ */
 function useAutoAck(channelId: string, newestId: string | undefined, atBottom: boolean) {
   const { mutate: ack } = useAck(channelId);
   const { data: states } = useReadStates();
   const lastRead = states?.find((s) => s.channel_id === channelId)?.last_read_message_id;
   const sent = useRef<string | undefined>(undefined);
+  const latest = useRef({ newestId, atBottom, lastRead });
+  const timer = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!atBottom || !newestId) return;
-    const maybeAck = () => {
-      if (document.visibilityState !== "visible") return;
-      if (lastRead && lastRead >= newestId) return;
-      if (sent.current && sent.current >= newestId) return;
-      sent.current = newestId;
-      ack(newestId);
-    };
-    const timer = window.setTimeout(maybeAck, 250);
-    document.addEventListener("visibilitychange", maybeAck);
+    latest.current = { newestId, atBottom, lastRead };
+  });
+
+  const flush = useCallback(() => {
+    const { newestId: id, atBottom: bottom, lastRead: read } = latest.current;
+    if (!bottom || !id || document.visibilityState !== "visible") return;
+    if ((read && read >= id) || (sent.current && sent.current >= id)) return;
+    sent.current = id;
+    ack(id);
+  }, [ack]);
+
+  useEffect(() => {
+    if (!atBottom || !newestId || timer.current !== null) return;
+    timer.current = window.setTimeout(() => {
+      timer.current = null;
+      flush();
+    }, ACK_EVERY_MS);
+  }, [atBottom, newestId, flush]);
+
+  useEffect(() => {
+    document.addEventListener("visibilitychange", flush);
     return () => {
-      window.clearTimeout(timer);
-      document.removeEventListener("visibilitychange", maybeAck);
+      document.removeEventListener("visibilitychange", flush);
+      if (timer.current !== null) window.clearTimeout(timer.current);
+      timer.current = null;
     };
-  }, [ack, atBottom, newestId, lastRead]);
+  }, [flush]);
 }
 
 export function ChatView({
