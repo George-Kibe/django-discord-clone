@@ -182,7 +182,7 @@ Ephemeral by design. Losing Redis loses presence and in-flight jobs, but never u
 
 | DB | Use |
 |---|---|
-| 0 | Django cache (rate-limit counters, presence, typing state) |
+| 0 | Django cache (rate-limit counters) and presence (`presence:*` keys) |
 | 1 | Channels layer (pub/sub groups) |
 | 2 | Celery broker |
 | 3 | Celery results |
@@ -244,11 +244,11 @@ Client A                    api (REST)                 Postgres     Redis channe
 
 1. The client opens `wss://<host>/ws/` and the browser sends cookies automatically (same origin).
 2. `AllowedHostsOriginValidator` checks `Origin`. `JWTCookieAuthMiddleware` validates the access cookie. Failure → close code `4401`.
-3. On connect, the consumer joins `user.{id}`, which carries DMs, notifications and membership changes. Presence is set to online.
-4. The client sends `subscribe` for the server/channel it is viewing. The server checks permissions, then joins `server.{id}` (presence, channel list changes) and `channel.{id}` (messages, typing, reactions, polls).
-5. A heartbeat every 30 s refreshes the presence TTL in Redis (60 s). A missed TTL → offline broadcast.
-6. Before the access token expires, the client refreshes over REST and sends a `reauth` frame. If the token expires anyway, the server closes with `4401` and the client refreshes and reconnects.
-7. After a reconnect, the client calls `GET /channels/{id}/messages?after=<last_seen_id>` to backfill.
+3. On connect, the consumer joins `user.{id}` (read states, membership changes), `server.{id}` for every server the user belongs to (presence, structure changes) and `channel.{id}` for every channel they can view (messages, typing). See ADR-024. Then it sends `ready`.
+4. Services publish events after commit. Structural and permission changes also send a `resync` control message, and the consumers recompute their channel groups.
+5. Presence: each connection has a Redis key with a 70 s TTL, refreshed by a heartbeat every 30 s. Disconnects and a Celery sweep every 30 s prune connections atomically. The last one to go broadcasts `offline`. Every presence event carries a per-user version.
+6. When the access token expires, the server closes with `4401`. The client refreshes over REST and reconnects. Password change/reset and logout close all of the user's connections the same way.
+7. After a reconnect, the client backfills each loaded channel with `GET /channels/{id}/messages?after=<newest id>` and refetches everything else.
 
 The full event catalogue is in [API.md](API.md#3-websocket-protocol).
 

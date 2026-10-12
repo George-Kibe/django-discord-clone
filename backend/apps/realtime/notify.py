@@ -23,17 +23,14 @@ def user_updated(user_id: Any) -> None:
 
 def status_changed(user_id: Any, status: str) -> None:
     """Chosen status changed over REST (the gateway handles presence.set itself)."""
-    if not presence.set_status_sync(user_id, status):
+    version = presence.set_status_sync(user_id, status)
+    if not version:
         return  # offline: nothing to show until they connect
     for server_id in _server_ids(user_id):
         events.publish(
             events.server_group(server_id),
             "presence.updated",
-            {
-                "user_id": str(user_id),
-                "status": presence.visible_status(status),
-                "server_id": str(server_id),
-            },
+            presence.event_data(user_id, presence.visible_status(status), version, server_id),
         )
 
 

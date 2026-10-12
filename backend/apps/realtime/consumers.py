@@ -73,6 +73,7 @@ class GatewayConsumer(AsyncJsonWebsocketConsumer):
         self.user = user
         self.uid = str(user.pk)
         self.conn_id = uuid.uuid4().hex
+        self.expiry_task: asyncio.Task[None] | None = None
         self.seq = 0
         self.subs = {}
         self.frames: deque[float] = deque()
@@ -84,13 +85,13 @@ class GatewayConsumer(AsyncJsonWebsocketConsumer):
         for server_id, channels in (await _subscriptions(user)).items():
             await self._apply_server(server_id, channels)
 
-        if await presence.connect(self.redis, self.uid, self.conn_id, self.status):
-            await self._broadcast_presence(presence.visible_status(self.status))
+        version = await presence.connect(self.redis, self.uid, self.conn_id, self.status)
+        if version:
+            await self._broadcast_presence(presence.visible_status(self.status), version)
 
         expires_at = self.scope.get("access_expires_at")
-        self.expiry_task = (
-            asyncio.create_task(self._close_at(expires_at)) if expires_at is not None else None
-        )
+        if expires_at is not None:
+            self.expiry_task = asyncio.create_task(self._close_at(expires_at))
         await self._event(
             "ready",
             {
@@ -101,9 +102,21 @@ class GatewayConsumer(AsyncJsonWebsocketConsumer):
             },
         )
 
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        """Clean up however the consumer ends: a send to a socket the client already closed
+        raises, and then ``disconnect()`` is never called (ghost presence until the TTL)."""
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            await asyncio.shield(self._cleanup())
+
     async def disconnect(self, code: int) -> None:
-        if not hasattr(self, "conn_id"):
-            return  # rejected before authentication
+        await self._cleanup()
+
+    async def _cleanup(self) -> None:
+        if not hasattr(self, "conn_id") or getattr(self, "cleaned_up", False):
+            return  # rejected before authentication, or already done
+        self.cleaned_up = True
         if self.expiry_task:
             self.expiry_task.cancel()
         server_ids = list(self.subs)
@@ -111,8 +124,9 @@ class GatewayConsumer(AsyncJsonWebsocketConsumer):
             await self._drop_server(server_id)
         await self.channel_layer.group_discard(user_group(self.uid), self.channel_name)
         try:
-            if await presence.disconnect(self.redis, self.uid, self.conn_id):
-                await self._broadcast_presence(presence.OFFLINE, server_ids=server_ids)
+            version = await presence.disconnect(self.redis, self.uid, self.conn_id)
+            if version:
+                await self._broadcast_presence(presence.OFFLINE, version, server_ids=server_ids)
         finally:
             await self.redis.aclose()
 
@@ -171,9 +185,9 @@ class GatewayConsumer(AsyncJsonWebsocketConsumer):
         self.status = status
         self.user.status = status
         await _save_status(self.user, status)
-        await presence.set_status(self.redis, self.uid, status)
+        version = await presence.set_status(self.redis, self.uid, status)
         if presence.visible_status(status) != previous:
-            await self._broadcast_presence(presence.visible_status(status))
+            await self._broadcast_presence(presence.visible_status(status), version)
 
     # ------------------------------------------------------------------ group messages
 
@@ -218,14 +232,16 @@ class GatewayConsumer(AsyncJsonWebsocketConsumer):
             await self.channel_layer.group_discard(channel_group(channel_id), self.channel_name)
         await self.channel_layer.group_discard(server_group(server_id), self.channel_name)
 
-    async def _broadcast_presence(self, status: str, server_ids: list[str] | None = None) -> None:
+    async def _broadcast_presence(
+        self, status: str, version: int, server_ids: list[str] | None = None
+    ) -> None:
         for server_id in server_ids if server_ids is not None else list(self.subs):
             await self.channel_layer.group_send(
                 server_group(server_id),
                 {
                     "type": "realtime.event",
                     "event": "presence.updated",
-                    "data": {"user_id": self.uid, "status": status, "server_id": server_id},
+                    "data": presence.event_data(self.uid, status, version, server_id),
                 },
             )
 

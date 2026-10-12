@@ -1,8 +1,10 @@
 "use client";
 
 import { Hash } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { useRealtime } from "@/features/realtime/provider";
+import { useAck, useReadStates } from "@/features/realtime/read-states";
 import { useMe } from "@/lib/auth/session";
 import { hasPerm } from "@/lib/permissions";
 
@@ -13,12 +15,39 @@ import {
   newNonce,
   useDeleteMessage,
   useMessages,
-  useNewMessagePolling,
   useSendMessage,
   type ChatMessage,
 } from "../api";
 import { Composer } from "./composer";
 import { MessageList } from "./message-list";
+import { TypingIndicator } from "./typing-indicator";
+
+const TYPING_EVERY_MS = 5000; // the server shows "typing" for 8 s per signal
+
+/** Marks the channel read while the newest message is on screen and the tab is visible. */
+function useAutoAck(channelId: string, newestId: string | undefined, atBottom: boolean) {
+  const { mutate: ack } = useAck(channelId);
+  const { data: states } = useReadStates();
+  const lastRead = states?.find((s) => s.channel_id === channelId)?.last_read_message_id;
+  const sent = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!atBottom || !newestId) return;
+    const maybeAck = () => {
+      if (document.visibilityState !== "visible") return;
+      if (lastRead && lastRead >= newestId) return;
+      if (sent.current && sent.current >= newestId) return;
+      sent.current = newestId;
+      ack(newestId);
+    };
+    const timer = window.setTimeout(maybeAck, 250);
+    document.addEventListener("visibilitychange", maybeAck);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", maybeAck);
+    };
+  }, [ack, atBottom, newestId, lastRead]);
+}
 
 export function ChatView({
   channel,
@@ -39,11 +68,21 @@ export function ChatView({
     : null;
   const send = useSendMessage(channel.id, author);
   const discard = useDeleteMessage(channel.id);
-  useNewMessagePolling(channel.id, messages.isSuccess);
   const list = useMemo(() => flattenMessages(messages.data), [messages.data]);
+  const newestId = useMemo(() => list.findLast((m) => !m.pending)?.id, [list]);
+  const [atBottom, setAtBottom] = useState(true);
+  useAutoAck(channel.id, newestId, atBottom);
+  const { request } = useRealtime();
+  const lastTyping = useRef(0);
   const canSend = hasPerm(channel.permissions, "SEND_MESSAGES") && Boolean(me?.email_verified);
   const { fetchNextPage, isFetchingNextPage, hasNextPage } = messages;
   const loadOlder = useCallback(() => void fetchNextPage(), [fetchNextPage]);
+
+  function typing() {
+    const now = Date.now();
+    if (now - lastTyping.current < TYPING_EVERY_MS) return;
+    if (request("typing.start", { channel_id: channel.id })) lastTyping.current = now;
+  }
 
   function retry(message: ChatMessage) {
     discard.mutate(message);
@@ -80,15 +119,21 @@ export function ChatView({
           myId={me?.id ?? ""}
           canManageMessages={hasPerm(channel.permissions, "MANAGE_MESSAGES")}
           onRetry={retry}
+          onAtBottomChange={setAtBottom}
         />
       )}
+      <TypingIndicator channelId={channel.id} />
       <Composer
         channelName={channel.name}
         disabled={!canSend}
         disabledReason={
           me && !me.email_verified ? "Verify your email to send messages." : undefined
         }
-        onSend={(content) => send.mutate({ content, nonce: newNonce() })}
+        onTyping={typing}
+        onSend={(content) => {
+          lastTyping.current = 0; // the next keystroke signals typing again right away
+          send.mutate({ content, nonce: newNonce() });
+        }}
       />
     </section>
   );

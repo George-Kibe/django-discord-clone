@@ -1,28 +1,48 @@
 "use client";
 
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { LogOut, Settings, UserRound } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
 
+import { PRESENCE_LABEL, PresenceDot } from "@/components/presence-dot";
 import { UserAvatar } from "@/components/user-avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useLogout, type Me } from "@/lib/auth/session";
+import { api } from "@/lib/api/client";
+import { meQueryKey, useLogout, type Me } from "@/lib/auth/session";
 
-const STATUS_LABEL: Record<Me["status"], string> = {
-  online: "Online",
-  idle: "Idle",
-  dnd: "Do not disturb",
-  invisible: "Invisible",
-};
+const STATUSES: Me["status"][] = ["online", "idle", "dnd", "invisible"];
+
+function useSetStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (status: Me["status"]) =>
+      (await api.PATCH("/api/v1/users/me", { body: { status } })).data,
+    onMutate: (status) =>
+      queryClient.setQueryData<Me>(meQueryKey, (old) => (old ? { ...old, status } : old)),
+    onSuccess: (me) => me && queryClient.setQueryData(meQueryKey, me),
+    onError: () => {
+      toast.error("Couldn't change your status.");
+      void queryClient.invalidateQueries({ queryKey: meQueryKey });
+    },
+  });
+}
 
 export function UserPanel({ me }: { me: Me }) {
   const logout = useLogout();
+  const setStatus = useSetStatus();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -30,19 +50,43 @@ export function UserPanel({ me }: { me: Me }) {
         aria-label="Account menu"
         data-testid="user-menu"
       >
-        <UserAvatar user={me} className="size-8" />
+        <span className="relative shrink-0">
+          <UserAvatar user={me} className="size-8" />
+          <PresenceDot status={me.status} />
+        </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold">
             {me.display_name || me.username}
           </span>
-          <span className="block truncate text-xs text-muted-foreground">
-            {STATUS_LABEL[me.status]}
+          <span className="block truncate text-xs text-muted-foreground" data-testid="my-status">
+            {PRESENCE_LABEL[me.status]}
           </span>
         </span>
         <Settings className="size-4 text-muted-foreground" aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" side="top" className="w-56">
         <DropdownMenuLabel className="truncate">@{me.username}</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger data-testid="status-menu">
+            <span className="relative size-4" aria-hidden>
+              <PresenceDot status={me.status} className="right-0.5 bottom-0.5 border-0" />
+            </span>
+            Set status
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            <DropdownMenuRadioGroup
+              value={me.status}
+              onValueChange={(value) => setStatus.mutate(value as Me["status"])}
+            >
+              {STATUSES.map((status) => (
+                <DropdownMenuRadioItem key={status} value={status}>
+                  {PRESENCE_LABEL[status]}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link href="/settings/profile">

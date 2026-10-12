@@ -10,7 +10,7 @@ Status: ⬜ not started · 🟨 in progress · ✅ done
 | 1 | Accounts & profiles | v0.2.0 | ✅ |
 | 2 | Production pipeline (built & rehearsed locally) | v0.3.0 | ✅ |
 | 3 | Servers, channels & messages | v0.4.0 | ✅ |
-| 4 | Real-time | v0.5.0 | ⬜ |
+| 4 | Real-time | v0.5.0 | ✅ |
 | 5 | Rich messaging & DMs | v0.6.0 | ⬜ |
 | 6 | Community features | v0.7.0 | ⬜ |
 | 7 | Hardening, deployment & launch | v1.0.0 | ⬜ |
@@ -93,23 +93,25 @@ The production pipeline (Phase 2) was built early and is rehearsed against produ
 - [x] Frontend: the Discord 3-column layout (server rail, channel sidebar, chat pane, member list), server/channel settings dialogs, invite flow, message list with virtualization and infinite scroll, composer
 - [x] Query-count tests on list endpoints (NFR-PERF-04/05)
 - [x] Also delivered: channel permission overwrites (API + engine; UI in Phase 6), public profile card with mutual servers (FR-PROF-03), topics seeded, generated permission constants with a CI drift check, server icons
-- Deferred by design: live updates (Phase 4; polling stands in), kick/ban (Phase 6), discovery page (Phase 6)
+- Deferred by design: live updates (done in Phase 4), kick/ban (Phase 6), discovery page (Phase 6)
 
 **Exit criteria:** two users can create/join a server via invite, create channels and exchange messages (on refresh). Permission tests cover the overwrite/hierarchy matrix.
 
-## Phase 4: Real-time (`v0.5.0`)
+## Phase 4: Real-time (`v0.5.0`) ✅
 
 **Goal:** everything updates live.
 
-- [ ] Realtime consumer: subscribe/unsubscribe, groups, rate limits, close codes ([API.md](API.md#3-websocket-protocol))
-- [ ] Event publishing from services (`on_commit`) for messages, channels, members, roles, server
-- [ ] Typing indicators, presence (Redis TTL), status selection (FR-MSG-06, FR-PRES-01, FR-PROF-04)
-- [ ] Read states, unread badges, mention counts, cross-tab sync (FR-CH-04)
-- [ ] Frontend `RealtimeClient`: reconnect/backoff, reauth, backfill, cache patching, optimistic send reconciliation (FR-MSG-02, 11, 12)
-- [ ] Permission-change handling (remove from groups, `server.removed`)
-- [ ] E2E: two browser contexts see each other's messages, typing and presence live
+- [x] Realtime consumer: automatic subscriptions with permission-aware resync, groups, frame rate limit, close codes ([API.md](API.md#3-websocket-protocol), ADR-024)
+- [x] Event publishing from services (`on_commit`) for messages, channels, categories, members, roles, servers and profiles
+- [x] Typing indicators, presence (Redis TTL + versioned events + Celery sweep), status selection (FR-MSG-06, FR-PRES-01, FR-PROF-04)
+- [x] Read states, unread markers on channels and servers, mention-count badges, cross-tab sync (FR-CH-04). Mentions are counted once they exist (Phase 5, FR-MSG-08)
+- [x] Frontend `RealtimeClient`: reconnect/backoff with jitter, token-expiry handling (close `4401` → refresh → reconnect, ADR-024), backfill, cache patching, optimistic send reconciliation (FR-MSG-02, 11, 12). Polling removed
+- [x] Permission-change handling (groups recomputed, `server.access_changed` / `server.removed`)
+- [x] E2E: two browser contexts see each other's messages, typing, presence, status and unread state live; a cut connection reconnects and backfills; an API restart mid-session loses and duplicates nothing
+- [x] Also delivered: sockets close on password change/reset and logout; connection-lost banner; `realtime_loadtest` management command
+- Fixed along the way: idle consumers crashed every few seconds (redis-py 8's 5 s socket timeout vs channels-redis's 5 s blocking pop); consumers that failed mid-connect left ghost presence
 
-**Exit criteria:** fan-out p95 < 500 ms locally under a 100-connection load script. Killing the `api` container mid-session → clients reconnect and backfill with no lost or duplicated messages.
+**Exit criteria:** fan-out p95 < 500 ms locally under a 100-connection load script (**measured: p95 46 ms, 2000/2000 deliveries**). Killing the `api` container mid-session → clients reconnect and backfill with no lost or duplicated messages (**E2E `server-restart.spec.ts`**).
 
 ## Phase 5: Rich messaging & DMs (`v0.6.0`)
 

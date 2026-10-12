@@ -143,6 +143,7 @@ class MemberSerializer(serializers.ModelSerializer[Member]):
     def get_is_owner(self, member: Member) -> bool:
         return member.user_id == member.server.owner_id
 
+    @extend_schema_field(serializers.ChoiceField(choices=["online", "idle", "dnd", "offline"]))
     def get_presence(self, member: Member) -> str:
         presence: dict[str, str] = self.context.get("presence") or {}
         return presence.get(str(member.user_id), "offline")

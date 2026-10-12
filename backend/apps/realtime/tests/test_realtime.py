@@ -215,6 +215,20 @@ async def test_join_and_leave_update_subscriptions(setup, make_user):
     await socket.close()
 
 
+async def test_creating_a_server_subscribes_the_owners_sockets(user):
+    socket = await open_socket(user)
+    from apps.servers.services import create_server
+
+    server = await database_sync_to_async(create_server)(owner=user, name="Fresh")
+    assert (await socket.event("server.joined"))["server_id"] == str(server.pk)
+    channel = await database_sync_to_async(general)(server)
+    await arest(user, "post", reverse("channel-messages", args=[channel.pk]), {"content": "hi"})
+    assert (await socket.event("message.created"))["content"] == "hi"
+    await socket.request("typing.start", {"channel_id": str(channel.pk)})
+    assert "error" not in [f["op"] for f in await socket.events()]
+    await socket.close()
+
+
 async def test_member_sees_others_join_and_leave(setup, make_user, join):
     socket = await open_socket(setup["member"])
     newcomer = await database_sync_to_async(make_user)()
@@ -300,12 +314,16 @@ async def test_presence_online_status_and_offline(setup):
     assert online == {
         "user_id": member_id,
         "status": "online",
+        "version": online["version"],
         "server_id": str(setup["server"].pk),
     }
+    versions = [online["version"]]
     assert (await members_presence(setup["owner"], setup["server"]))[member_id] == "online"
 
     await member.request("presence.set", {"status": "dnd"})
-    assert (await owner.event("presence.updated", user_id=member_id))["status"] == "dnd"
+    dnd = await owner.event("presence.updated", user_id=member_id)
+    assert dnd["status"] == "dnd"
+    versions.append(dnd["version"])
     await member.request("presence.set", {"status": "invisible"})
     assert (await owner.event("presence.updated", user_id=member_id))["status"] == "offline"
     assert (await members_presence(setup["owner"], setup["server"]))[member_id] == "offline"
@@ -315,7 +333,10 @@ async def test_presence_online_status_and_offline(setup):
     await member.request("presence.set", {"status": "online"})
     assert (await owner.event("presence.updated", user_id=member_id))["status"] == "online"
     await member.close()
-    assert (await owner.event("presence.updated", user_id=member_id))["status"] == "offline"
+    offline = await owner.event("presence.updated", user_id=member_id)
+    assert offline["status"] == "offline"
+    versions.append(offline["version"])
+    assert versions == sorted(versions) and len(set(versions)) == 3  # strictly increasing
     await owner.close()
 
 
@@ -352,6 +373,26 @@ def test_sweep_reports_crashed_connections(setup):
     assert sweep_presence() == 1
     assert presence.get_presence([uid]) == {uid: "offline"}
     assert sweep_presence() == 0
+
+
+async def test_reload_race_never_leaves_a_connected_user_offline(setup):
+    """Old tab's cleanup and the reloaded tab's connect interleave; the atomic prune keeps the
+    user online, or the versions let clients discard the stale "offline"."""
+    uid = str(setup["member"].pk)
+    client = presence.async_client()
+    try:
+        assert await presence.connect(client, uid, "old", "online")
+        # The new tab registers before the old tab's cleanup runs.
+        assert await presence.connect(client, uid, "new", "online") == 0
+        assert await presence.disconnect(client, uid, "old") == 0
+        assert presence.get_presence([uid]) == {uid: "online"}
+        # Cleanup first, then the new tab: offline, then online with a higher version.
+        went_offline = await presence.disconnect(client, uid, "new")
+        came_online = await presence.connect(client, uid, "newer", "online")
+        assert 0 < went_offline < came_online
+        assert presence.get_presence([uid]) == {uid: "online"}
+    finally:
+        await client.aclose()
 
 
 # ---------------------------------------------------------------------------- protocol & auth
@@ -427,3 +468,27 @@ async def test_logout_closes_sockets(setup):
     response = await database_sync_to_async(client.post)(reverse("auth-logout"))
     assert response.status_code == 204
     assert await socket.closed_with() == 4401
+
+
+async def test_cleanup_runs_even_if_the_client_vanishes_mid_connect(setup):
+    """A tab closed right after the handshake: sending ``ready`` fails, but presence and groups
+    are still cleaned up (no ghost "online")."""
+    uid = str(setup["member"].pk)
+    token = await database_sync_to_async(AccessToken.for_user)(setup["member"])
+    communicator = WebsocketCommunicator(
+        application,
+        "/ws/",
+        headers=[(b"origin", b"http://localhost"), (b"cookie", f"access={token}".encode())],
+    )
+    original = communicator.output_queue.put
+
+    async def vanish(message):  # the client is gone by the time we send "ready"
+        if message.get("type") == "websocket.send":
+            raise OSError("client disconnected")
+        await original(message)
+
+    communicator.output_queue.put = vanish
+    await communicator.connect()
+    with pytest.raises(OSError):
+        await communicator.wait(timeout=2)
+    assert presence.get_presence([uid]) == {uid: "offline"}

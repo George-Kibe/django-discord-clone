@@ -101,7 +101,9 @@ PRESENCE_REDIS_URL = env("PRESENCE_REDIS_URL", default=f"{REDIS_URL}/0")
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {"hosts": [f"{REDIS_URL}/1"]},
+        # redis-py 8 defaults socket_timeout to 5 s, the same as channels-redis's blocking
+        # BZPOPMIN, so idle consumers' reads timed out and crashed without cleanup.
+        "CONFIG": {"hosts": [{"address": f"{REDIS_URL}/1", "socket_timeout": 30}]},
     }
 }
 

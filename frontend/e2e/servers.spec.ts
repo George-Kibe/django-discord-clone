@@ -79,12 +79,9 @@ test.describe("servers, channels & messages (Phase 3)", () => {
     await expect(friend.page.getByRole("menuitem", { name: "Leave server" })).toBeVisible();
     await friend.page.keyboard.press("Escape");
 
-    // The friend replies; the owner sees it without reloading (polling until Phase 4 real-time).
+    // The friend replies; the owner sees it live, and the friend appears in the member list.
     await send(friend.page, "hi from your friend");
-    await expect(page.getByText("hi from your friend")).toBeVisible({ timeout: 15_000 });
-
-    // Member list + profile card (Phase 3 refreshes members on focus/interval; reload to be quick).
-    await page.reload();
+    await expect(page.getByText("hi from your friend")).toBeVisible();
     const members = page.getByTestId("member-list");
     await expect(members).toContainText(owner.username);
     await expect(members).toContainText(friend.user.username);

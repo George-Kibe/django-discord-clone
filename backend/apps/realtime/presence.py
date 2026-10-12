@@ -38,6 +38,16 @@ def visible_status(status: str | None) -> str:
     return OFFLINE if not status or status == INVISIBLE else status
 
 
+def event_data(uid: Any, status: str, version: int, server_id: Any) -> dict[str, Any]:
+    """Payload of a presence.updated event."""
+    return {
+        "user_id": str(uid),
+        "status": status,
+        "version": version,
+        "server_id": str(server_id),
+    }
+
+
 _sync_client: redis.Redis | None = None
 
 
@@ -53,46 +63,69 @@ def async_client() -> aioredis.Redis:
     return aioredis.Redis.from_url(settings.PRESENCE_REDIS_URL, decode_responses=True)
 
 
+# Every online/offline/status transition bumps a per-user version that travels with the
+# presence.updated event, so clients can drop events that arrive out of order (e.g. an old tab's
+# "offline" overtaking a reloaded tab's "online").
+
+_PRUNE = """
+local uid, cid = ARGV[1], ARGV[2]
+local conns = 'presence:conns:' .. uid
+if cid ~= '' then
+  redis.call('DEL', 'presence:conn:' .. uid .. ':' .. cid)
+  redis.call('SREM', conns, cid)
+end
+local live = 0
+for _, c in ipairs(redis.call('SMEMBERS', conns)) do
+  if redis.call('EXISTS', 'presence:conn:' .. uid .. ':' .. c) == 1 then
+    live = live + 1
+  else
+    redis.call('SREM', conns, c)
+  end
+end
+if live == 0 and redis.call('SREM', 'presence:online', uid) == 1 then
+  return redis.call('INCR', 'presence:version:' .. uid)
+end
+return 0
+"""
+"""Atomically drop a connection (if given) and expired ones. Returns the new version if the user
+just went offline, else 0. Atomic so a concurrent connect can't be marked offline."""
+
+
+def _version(uid: str) -> str:
+    return f"presence:version:{uid}"
+
+
 # ---------------------------------------------------------------------------- async (consumer)
 
 
-async def connect(client: aioredis.Redis, uid: str, cid: str, status: str) -> bool:
-    """Register a connection. Returns True if the user just came online."""
+async def connect(client: aioredis.Redis, uid: str, cid: str, status: str) -> int:
+    """Register a connection. Returns the new version if the user just came online, else 0."""
     async with client.pipeline(transaction=True) as pipe:
         pipe.set(_conn(uid, cid), "1", ex=CONN_TTL)
         pipe.sadd(_conns(uid), cid)
         pipe.set(_status(uid), status)
         pipe.sadd(ONLINE, uid)
+        pipe.incr(_version(uid))
         results = await pipe.execute()
-    return bool(results[3])
+    return int(results[4]) if results[3] else 0
 
 
 async def heartbeat(client: aioredis.Redis, uid: str, cid: str) -> None:
     await client.set(_conn(uid, cid), "1", ex=CONN_TTL)
 
 
-async def set_status(client: aioredis.Redis, uid: str, status: str) -> None:
-    await client.set(_status(uid), status)
+async def set_status(client: aioredis.Redis, uid: str, status: str) -> int:
+    """Store a new chosen status. Returns the new version."""
+    async with client.pipeline(transaction=True) as pipe:
+        pipe.set(_status(uid), status)
+        pipe.incr(_version(uid))
+        results = await pipe.execute()
+    return int(results[1])
 
 
-async def _live_connections(client: aioredis.Redis, uid: str) -> int:
-    cids = await client.smembers(_conns(uid))
-    live = 0
-    for cid in map(str, cids):
-        if await client.exists(_conn(uid, cid)):
-            live += 1
-        else:
-            await client.srem(_conns(uid), cid)
-    return live
-
-
-async def disconnect(client: aioredis.Redis, uid: str, cid: str) -> bool:
-    """Drop a connection. Returns True if that was the user's last one (now offline)."""
-    await client.delete(_conn(uid, cid))
-    await client.srem(_conns(uid), cid)
-    if await _live_connections(client, uid) == 0:
-        return bool(await client.srem(ONLINE, uid))
-    return False
+async def disconnect(client: aioredis.Redis, uid: str, cid: str) -> int:
+    """Drop a connection. Returns the new version if that was the user's last one, else 0."""
+    return int(await client.eval(_PRUNE, 0, uid, cid))
 
 
 # ---------------------------------------------------------------------------- sync (REST, Celery)
@@ -112,25 +145,26 @@ def get_presence(user_ids: Iterable[Any]) -> dict[str, str]:
     }
 
 
-def set_status_sync(uid: Any, status: str) -> bool:
-    """Store a new chosen status. Returns True if the user is currently online."""
+def set_status_sync(uid: Any, status: str) -> int:
+    """Store a new chosen status. Returns the new version if the user is online, else 0."""
     client = sync_client()
-    client.set(_status(str(uid)), status)
-    return bool(client.sismember(ONLINE, str(uid)))
+    with client.pipeline(transaction=True) as pipe:
+        pipe.set(_status(str(uid)), status)
+        pipe.sismember(ONLINE, str(uid))
+        pipe.incr(_version(str(uid)))
+        results = pipe.execute()
+    return int(results[2]) if results[1] else 0
 
 
-def sweep() -> list[str]:
-    """Users whose connections all expired without a clean disconnect (crash, network loss)."""
+def sweep() -> list[tuple[str, int]]:
+    """Users whose connections all expired without a clean disconnect (crash, network loss),
+    with their new presence version."""
     client = sync_client()
-    gone: list[str] = []
+    gone: list[tuple[str, int]] = []
     for uid in map(str, client.smembers(ONLINE)):
-        cids = {str(c) for c in client.smembers(_conns(uid))}
-        alive = [cid for cid in cids if client.exists(_conn(uid, cid))]
-        dead = cids - set(alive)
-        if dead:
-            client.srem(_conns(uid), *dead)
-        if not alive and client.srem(ONLINE, uid):
-            gone.append(uid)
+        version = int(client.eval(_PRUNE, 0, uid, ""))
+        if version:
+            gone.append((uid, version))
     return gone
 
 

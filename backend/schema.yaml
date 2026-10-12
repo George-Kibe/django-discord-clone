@@ -1792,9 +1792,10 @@ components:
           format: date-time
           readOnly: true
         presence:
-          type: string
-          readOnly: true
+          allOf:
+          - $ref: '#/components/schemas/PresenceEnum'
           description: online, idle, dnd or offline (invisible users appear offline).
+          readOnly: true
       required:
       - is_owner
       - joined_at
@@ -2157,6 +2158,13 @@ components:
       - description
       - name
       - value
+    PresenceEnum:
+      enum:
+      - online
+      - idle
+      - dnd
+      - offline
+      type: string
     PurposeEnum:
       enum:
       - avatar

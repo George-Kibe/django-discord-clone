@@ -68,6 +68,7 @@ def create_server(*, owner: User, name: str, description: str = "", **extra: Any
     Channel.objects.create(server=server, category=category, name="general", position=0)
     if icon_public_id:
         _set_icon(server, owner, icon_public_id)
+    events.membership_changed(owner.pk, server.pk)  # the owner's open tabs subscribe right away
     return server
 
 

@@ -904,7 +904,7 @@ export interface components {
             /** Format: date-time */
             readonly joined_at: string;
             /** @description online, idle, dnd or offline (invisible users appear offline). */
-            readonly presence: string;
+            readonly presence: components["schemas"]["PresenceEnum"];
         };
         Message: {
             /** Format: uuid */
@@ -1044,6 +1044,8 @@ export interface components {
             value: number;
             description: string;
         };
+        /** @enum {string} */
+        PresenceEnum: "online" | "idle" | "dnd" | "offline";
         /**
          * @description * `avatar` - avatar
          *     * `server_icon` - server_icon

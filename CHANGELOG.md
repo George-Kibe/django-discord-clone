@@ -6,9 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-12
+
+Phase 4: real-time.
+
+### Added
+
+- Live gateway (`/ws/`): messages (create/edit/delete), typing indicators, presence and status, read states, and server/channel/category/role/member changes arrive without reloading. Subscriptions are automatic and follow permission changes, so private channels never leak (ADR-024).
+- Presence: online/idle/do-not-disturb/offline dots, an Offline group in the member list, and a status picker in the account menu (invisible shows as offline). It works across multiple tabs and survives crashed tabs (Redis TTL plus a Celery sweep).
+- Unread state: bold channels with a marker, unread servers in the rail, and mention-count badges. Channels are marked read automatically while you're at the bottom of a visible tab. `POST /channels/{id}/ack` and `GET /read-states`. Members carry `presence`.
+- Robust client: reconnects with jittered backoff, handles token expiry and rate-limit close codes, backfills missed messages after a reconnect, and shows a "Reconnecting…" banner.
+- Open sockets close on password change/reset and logout.
+- `manage.py realtime_loadtest`: fan-out latency with N connections (100 connections: p95 46 ms).
+- E2E coverage for live chat, typing, presence, unread state, dropped connections and an API restart mid-session.
+
+### Changed
+
+- Polling for new messages and member lists is gone. Everything is driven by gateway events.
+
 ### Fixed
 
 - Development email: sign-up, resend and reset emails to real addresses are delivered through the SMTP/Gmail account in `.env` (`EMAIL_URL`, or `SENDER_EMAIL` + `EMAIL_PASSWORD`). Test-domain recipients are still captured by Mailpit. Previously everything went to Mailpit.
+- WebSocket consumers no longer crash when idle: redis-py 8's default 5 s socket timeout raced the channel layer's 5 s blocking read.
 
 ## [0.4.0] - 2026-10-11
 
@@ -104,7 +123,8 @@ Phase 0: foundations.
 
 - Original "StudyBuddy" Django/Jinja application: topics, rooms, messages, participants, activity feed, user profiles, a polls app, rooms PDF export and login/logout audit signals. This code moves to `legacy/` in Phase 0 of the rewrite.
 
-[Unreleased]: https://github.com/George-Kibe/django-discord-clone/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/George-Kibe/django-discord-clone/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/George-Kibe/django-discord-clone/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/George-Kibe/django-discord-clone/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/George-Kibe/django-discord-clone/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/George-Kibe/django-discord-clone/compare/v0.1.0...v0.2.0
