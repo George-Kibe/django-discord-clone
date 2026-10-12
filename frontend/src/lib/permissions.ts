@@ -13,3 +13,9 @@ export function hasPerm(bits: number | undefined | null, perm: PermName): boolea
 export function toggleBit(bits: number, perm: PermName, on: boolean): number {
   return on ? bits | Perm[perm] : bits & ~Perm[perm];
 }
+
+/** DM participants implicitly hold every message permission except moderation (DATA_MODEL.md). */
+export const DM_PERMISSIONS =
+  Object.values(Perm).reduce((all, bit) => all | bit, 0) &
+  ~Perm.ADMINISTRATOR &
+  ~Perm.MANAGE_MESSAGES;

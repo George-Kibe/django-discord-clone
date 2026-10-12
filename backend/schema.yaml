@@ -2147,6 +2147,22 @@ components:
       - size_bytes
       - url
       - width
+    AttachmentRefRequest:
+      type: object
+      properties:
+        public_id:
+          type: string
+          minLength: 1
+          description: From POST /media/sign (purpose=attachment), uploaded.
+          maxLength: 255
+        filename:
+          type: string
+          minLength: 1
+          description: The original file name.
+          maxLength: 255
+      required:
+      - filename
+      - public_id
     AvatarRequest:
       type: object
       properties:
@@ -2825,12 +2841,7 @@ components:
         attachments:
           type: array
           items:
-            type: string
-            minLength: 1
-            maxLength: 255
-          description: public_ids from POST /media/sign (purpose=attachment), uploaded
-            to Cloudinary.
-          maxItems: 5
+            $ref: '#/components/schemas/AttachmentRefRequest'
     Meta:
       type: object
       properties:

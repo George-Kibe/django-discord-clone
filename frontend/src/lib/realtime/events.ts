@@ -1,6 +1,10 @@
 import type { components } from "@/types/api";
 
 type Message = components["schemas"]["Message"];
+type Notification = components["schemas"]["Notification"];
+
+/** Identifies the conversation of a message event: a channel (with its server) or a DM. */
+type Scope = { channel_id: string | null; dm_id: string | null; server_id: string | null };
 
 export type PresenceStatus = "online" | "idle" | "dnd" | "offline";
 
@@ -12,11 +16,22 @@ export type GatewayEvents = {
     heartbeat_interval: number;
     server_ids: string[];
   };
-  "message.created": Message & { server_id: string };
-  "message.updated": Message & { server_id: string };
-  "message.deleted": { id: string; channel_id: string; server_id: string };
+  "message.created": Message & Scope;
+  "message.updated": Message & Scope;
+  "message.deleted": { id: string } & Scope;
+  "reaction.added": { message_id: string; emoji: string; user_id: string; count: number } & Scope;
+  "reaction.removed": { message_id: string; emoji: string; user_id: string; count: number } & Scope;
+  "pins.updated": Scope;
+  "notification.created": Notification;
+  "notification.updated": Notification;
+  "notification.read": { ids: string[] };
+  "mute_settings.updated": Record<string, never>;
+  "dm.created": { dm_id: string };
+  "dm.updated": { dm_id: string };
+  "dm.removed": { dm_id: string };
   "typing.started": {
-    channel_id: string;
+    channel_id: string | null;
+    dm_id: string | null;
     user_id: string;
     username: string;
     display_name: string;
@@ -29,8 +44,9 @@ export type GatewayEvents = {
     server_id: string;
   };
   "read_state.updated": {
-    channel_id: string;
-    server_id: string;
+    channel_id: string | null;
+    dm_id: string | null;
+    server_id: string | null;
     last_read_message_id: string | null;
     mention_count: number;
   };

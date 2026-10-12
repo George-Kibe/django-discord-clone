@@ -274,13 +274,14 @@ def _resource(public_id: str, resource_type: str = "image") -> dict[str, Any]:
     return {"public_id": public_id, "bytes": 4096}
 
 
-def upload(user, resource_type="image") -> str:
+def upload(user, resource_type="image") -> dict[str, str]:
     suffix = "" if resource_type == "image" else ".pdf"
     public_id = f"test/attachments/{user.pk}/{len(PendingUpload.objects.all())}{suffix}"
     PendingUpload.objects.create(
         user=user, public_id=public_id, purpose="attachment", resource_type=resource_type
     )
-    return public_id
+    name = "photo.png" if resource_type == "image" else "../../notes\x07.pdf"
+    return {"public_id": public_id, "filename": name}
 
 
 def test_attachments_are_claimed_and_serialized(client_for, ana, channel):
@@ -294,6 +295,8 @@ def test_attachments_are_claimed_and_serialized(client_for, ana, channel):
     first, second = message["attachments"]
     assert first["is_image"] and first["width"] == 640
     assert first["preview_url"].startswith("https://res.cloudinary.com/test-cloud/image/upload/")
+    assert first["filename"] == "photo.png"
+    assert second["filename"] == "notes.pdf"  # path parts and control characters stripped
     assert not second["is_image"] and second["preview_url"] is None
     assert second["url"].endswith(".pdf")
     assert not PendingUpload.objects.exists()

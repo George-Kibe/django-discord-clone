@@ -6,6 +6,7 @@ import { useParams, usePathname } from "next/navigation";
 import { BrandMark } from "@/components/brand";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { MentionBadge } from "@/components/mention-badge";
+import { InboxButton } from "@/features/notifications/components/inbox-button";
 import { useUnread } from "@/features/realtime/read-states";
 import { cn } from "@/lib/utils";
 
@@ -65,15 +66,22 @@ function RailItem({
 
 export function ServerRail() {
   const { data: servers } = useServers();
-  const { servers: unread, mentions } = useUnread();
+  const { servers: unread, mentions, dmTotal, dms } = useUnread();
   const params = useParams<{ serverId?: string }>();
   const pathname = usePathname();
   const home = pathname.startsWith("/channels/me") || pathname.startsWith("/settings");
   return (
     <>
-      <RailItem href="/channels/me" label="Home" active={home}>
+      <RailItem
+        href="/channels/me"
+        label="Home"
+        active={home}
+        unread={dms.size > 0}
+        mentions={dmTotal}
+      >
         <BrandMark className="size-12 rounded-none" />
       </RailItem>
+      <InboxButton />
       <div className="mx-1 h-8 w-px bg-border md:mx-0 md:h-px md:w-8" aria-hidden />
       <ul
         className="flex items-center gap-2 md:flex-col"

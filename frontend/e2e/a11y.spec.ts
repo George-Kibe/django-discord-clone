@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
 import { signUpAndLogin } from "./helpers";
+import { apiPost, messageAction, newUser, send, sharedServer } from "./realtime-helpers";
 
 /** WCAG 2.2 AA automated checks (NFR-UX-02). Manual keyboard/screen-reader passes happen in Phase 7. */
 async function expectNoViolations(page: Page) {
@@ -39,4 +40,40 @@ test("signed-in pages are accessible", async ({ page, request }) => {
     await page.getByLabel(ready).waitFor();
     await expectNoViolations(page);
   }
+});
+
+test("messaging UI is accessible (Phase 5)", async ({ browser }) => {
+  const owner = await newUser(browser, "a11y_owner");
+  const guest = await newUser(browser, "a11y_guest");
+  const { url } = await sharedServer(owner.page, guest.page, "Accessible");
+  const page = owner.page;
+
+  await page.goto("/settings/notifications");
+  await page.getByLabel(/Desktop notifications/).waitFor();
+  await expectNoViolations(page);
+
+  // A channel with a reply, a reaction and a mention, plus the open inbox and emoji picker.
+  await page.goto(url);
+  await send(guest.page, `hello @${owner.user.username} welcome`);
+  await expect(page.getByTestId("inbox-count")).toHaveText("1");
+  await page.getByTestId("inbox-button").click();
+  await page.getByTestId("inbox-list").waitFor();
+  await expectNoViolations(page);
+  await page.keyboard.press("Escape");
+  await messageAction(page.getByTestId("message").filter({ visible: true }).last(), "Add reaction");
+  await page.getByTestId("emoji-picker").waitFor();
+  await expectNoViolations(page);
+  await page.keyboard.press("Escape");
+
+  // A DM conversation with the search panel open.
+  const dm = await apiPost<{ id: string }>(page, "/api/v1/dms", {
+    user_ids: [(await (await guest.page.request.get("/api/v1/users/me")).json()).id],
+  });
+  await page.goto(`/channels/me/${dm.id}`);
+  await page.getByTestId("composer").filter({ visible: true }).waitFor({ timeout: 30_000 });
+  await page.getByRole("button", { name: "Search messages" }).filter({ visible: true }).click();
+  await page.getByTestId("search-panel").waitFor();
+  await expectNoViolations(page);
+  await owner.context.close();
+  await guest.context.close();
 });

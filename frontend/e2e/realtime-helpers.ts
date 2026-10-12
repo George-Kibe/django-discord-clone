@@ -19,7 +19,8 @@ export async function apiPost<T>(page: Page, path: string, data: unknown = {}): 
     headers: { "X-CSRFToken": await csrf(page), Origin: new URL(page.url()).origin },
   });
   expect(response.ok(), `${path}: ${response.status()} ${await response.text()}`).toBe(true);
-  return (await response.json()) as T;
+  const body = await response.text();
+  return (body ? JSON.parse(body) : undefined) as T;
 }
 
 export async function newUser(browser: Browser, prefix: string) {
@@ -61,9 +62,13 @@ export function memberRow(page: Page, username: string) {
  * Clicks a message's hover-toolbar button. Rows can still settle right after an edit (the
  * virtualiser re-measures asynchronously), so re-hover until the click lands.
  */
-export async function messageAction(row: Locator, name: "Edit message" | "Delete message") {
+export async function messageAction(
+  row: Locator,
+  name:
+    "Edit message" | "Delete message" | "Reply" | "Add reaction" | "Pin message" | "Unpin message",
+) {
   await expect(async () => {
     await row.hover();
-    await row.getByRole("button", { name }).click({ timeout: 2000 });
+    await row.getByRole("toolbar").getByRole("button", { name }).click({ timeout: 2000 });
   }).toPass({ timeout: 15_000 });
 }

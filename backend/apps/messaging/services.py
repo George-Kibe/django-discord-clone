@@ -116,22 +116,29 @@ def history(
 # ---------------------------------------------------------------------------- send
 
 
-def _attach(target: Target, author: User, message: Message, public_ids: list[str]) -> None:
-    if not public_ids:
+def _safe_filename(name: str) -> str:
+    """Display name only: no paths or control characters."""
+    name = name.replace("\\", "/").rsplit("/", 1)[-1]
+    name = "".join(ch for ch in name if ch.isprintable()).strip()
+    return name[:255] or "file"
+
+
+def _attach(target: Target, author: User, message: Message, refs: list[dict[str, Any]]) -> None:
+    if not refs:
         return
     target.require(Perm.ATTACH_FILES)
-    if len(set(public_ids)) > MAX_ATTACHMENTS:
+    unique = {ref["public_id"]: ref for ref in refs}
+    if len(unique) > MAX_ATTACHMENTS:
         raise exceptions.ValidationError(
             {"attachments": [f"At most {MAX_ATTACHMENTS} attachments."]}
         )
-    for public_id in dict.fromkeys(public_ids):
+    for public_id, ref in unique.items():
         resource = media.claim_upload(user=author, public_id=public_id, purpose="attachment")
-        filename = public_id.rsplit("/", 1)[-1]
         Attachment.objects.create(
             message=message,
             public_id=public_id,
             resource_type=resource["resource_type"],
-            filename=str(resource.get("original_filename_hint") or filename)[:255],
+            filename=_safe_filename(ref.get("filename") or public_id),
             content_type=(
                 f"{resource['resource_type']}/{resource.get('format')}"
                 if resource.get("format")
@@ -301,7 +308,7 @@ def send_message(
     content: str,
     nonce: str | None = None,
     reply_to: Any = None,
-    attachments: list[str] | None = None,
+    attachments: list[dict[str, Any]] | None = None,
 ) -> tuple[Message, bool]:
     """Returns (message, created). A repeated nonce returns the original message (FR-MSG-11)."""
     target.require(Perm.SEND_MESSAGES)

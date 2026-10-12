@@ -14,13 +14,22 @@ import {
 import { toast } from "sonner";
 
 import {
-  backfillChannel,
+  backfill,
+  conversationOf,
   mergeNewest,
   messageKeys,
+  patchReaction,
   removeMessage,
   replaceMessage,
   type Pages,
 } from "@/features/chat/api";
+import { dmKeys, type DMConversation } from "@/features/dms/api";
+import {
+  markReadLocally,
+  notificationKeys,
+  upsertNotification,
+  type AppNotification,
+} from "@/features/notifications/api";
 import { keys } from "@/features/servers/api";
 import { refreshSession } from "@/lib/api/client";
 import { meQueryKey } from "@/lib/auth/session";
@@ -28,6 +37,8 @@ import { clearSessionHint } from "@/lib/cookies";
 import { RealtimeClient, type ConnectionStatus } from "@/lib/realtime/client";
 import type { GatewayEvent } from "@/lib/realtime/events";
 import { wsUrl } from "@/lib/realtime/ws-url";
+
+import { showBrowserNotification } from "@/features/notifications/browser";
 
 import { presenceStore } from "./presence";
 import { patchReadState, readStatesKey } from "./read-states";
@@ -62,41 +73,97 @@ function forgetServer(queryClient: QueryClient, serverId: string) {
   void queryClient.invalidateQueries({ queryKey: readStatesKey });
 }
 
+/** Moves a DM to the top of the sidebar when a message arrives (or refetches if it's new). */
+function bumpDM(queryClient: QueryClient, dmId: string, messageId: string) {
+  const list = queryClient.getQueryData<DMConversation[]>(dmKeys.list);
+  const found = list?.find((d) => d.id === dmId);
+  if (!list || !found) {
+    void queryClient.invalidateQueries({ queryKey: dmKeys.list, exact: true });
+    return;
+  }
+  queryClient.setQueryData<DMConversation[]>(dmKeys.list, [
+    { ...found, last_message_id: messageId },
+    ...list.filter((d) => d.id !== dmId),
+  ]);
+}
+
+export type EventContext = {
+  myId: string;
+  serverId?: string;
+  leaveServer: (id: string, reason: string) => void;
+  leaveDM?: (id: string) => void;
+  onNotification?: (notification: AppNotification) => void;
+};
+
 /** Applies one gateway event to the client caches (ADR-024: hot paths patch, the rest refetch). */
-export function applyEvent(
-  queryClient: QueryClient,
-  event: GatewayEvent,
-  ctx: { myId: string; serverId?: string; leaveServer: (id: string, reason: string) => void },
-): void {
+export function applyEvent(queryClient: QueryClient, event: GatewayEvent, ctx: EventContext): void {
   switch (event.type) {
     case "message.created": {
       const message = event.data;
-      queryClient.setQueryData<Pages>(messageKeys.channel(message.channel_id), (old) =>
+      const conversation = conversationOf(message);
+      queryClient.setQueryData<Pages>(messageKeys.of(conversation), (old) =>
         mergeNewest(old, [message]),
       );
-      if (message.author) typingStore.stop(message.channel_id, message.author.id);
+      if (message.author) typingStore.stop(conversation.id, message.author.id);
       const mine = message.author?.id === ctx.myId;
-      patchReadState(queryClient, message.channel_id, (state) => ({
+      patchReadState(queryClient, conversation.id, (state) => ({
         ...state,
         last_message_id: message.id,
         last_read_message_id: mine ? message.id : state.last_read_message_id,
       }));
+      if (message.dm_id) bumpDM(queryClient, message.dm_id, message.id);
       return;
     }
     case "message.updated":
-      queryClient.setQueryData<Pages>(messageKeys.channel(event.data.channel_id), (old) =>
+      queryClient.setQueryData<Pages>(messageKeys.of(conversationOf(event.data)), (old) =>
         replaceMessage(old, event.data),
       );
       return;
     case "message.deleted":
-      queryClient.setQueryData<Pages>(messageKeys.channel(event.data.channel_id), (old) =>
+      queryClient.setQueryData<Pages>(messageKeys.of(conversationOf(event.data)), (old) =>
         removeMessage(old, event.data.id),
       );
+      return;
+    case "reaction.added":
+    case "reaction.removed": {
+      const { message_id, emoji, count, user_id } = event.data;
+      const me = user_id === ctx.myId ? event.type === "reaction.added" : undefined;
+      queryClient.setQueryData<Pages>(messageKeys.of(conversationOf(event.data)), (old) =>
+        patchReaction(old, message_id, emoji, count, me),
+      );
+      return;
+    }
+    case "pins.updated":
+      void queryClient.invalidateQueries({
+        queryKey: messageKeys.pins(conversationOf(event.data)),
+      });
+      return;
+    case "notification.created":
+    case "notification.updated":
+      upsertNotification(queryClient, event.data);
+      ctx.onNotification?.(event.data);
+      return;
+    case "notification.read":
+      markReadLocally(queryClient, event.data.ids);
+      return;
+    case "mute_settings.updated":
+      void queryClient.invalidateQueries({ queryKey: notificationKeys.mutes });
+      return;
+    case "dm.created":
+    case "dm.updated":
+      void queryClient.invalidateQueries({ queryKey: dmKeys.list, exact: true });
+      void queryClient.invalidateQueries({ queryKey: dmKeys.detail(event.data.dm_id) });
+      void queryClient.invalidateQueries({ queryKey: readStatesKey });
+      return;
+    case "dm.removed":
+      queryClient.removeQueries({ queryKey: dmKeys.detail(event.data.dm_id) });
+      void queryClient.invalidateQueries({ queryKey: dmKeys.list, exact: true });
+      ctx.leaveDM?.(event.data.dm_id);
       return;
     case "typing.started":
       if (event.data.user_id === ctx.myId) return;
       typingStore.start(
-        event.data.channel_id,
+        event.data.channel_id ?? event.data.dm_id ?? "",
         { userId: event.data.user_id, name: event.data.display_name || event.data.username },
         event.data.expires_in,
       );
@@ -105,7 +172,7 @@ export function applyEvent(
       presenceStore.update(event.data.user_id, event.data.status, event.data.version);
       return;
     case "read_state.updated":
-      patchReadState(queryClient, event.data.channel_id, (state) => ({
+      patchReadState(queryClient, event.data.channel_id ?? event.data.dm_id ?? "", (state) => ({
         ...state,
         last_read_message_id: event.data.last_read_message_id,
         mention_count: event.data.mention_count,
@@ -169,31 +236,48 @@ export function applyEvent(
 }
 
 /** After a reconnect: catch up on whatever happened while the socket was down. */
-async function resync(queryClient: QueryClient) {
+/** Data that changes from events alone: anything fetched before `ready` may already be stale. */
+const LIVE_ROOTS = new Set(["read-states", "notifications", "dms"]);
+
+/**
+ * Catch up on what happened while we weren't subscribed. After a reconnect everything is
+ * refetched; on the first connect only live data is (it may have changed between the initial
+ * fetches and `ready`). Loaded conversations are backfilled rather than reloaded.
+ */
+export async function resync(queryClient: QueryClient, { full }: { full: boolean }) {
   typingStore.clear();
-  presenceStore.clear(); // member lists are refetched below
-  const messageQueries = queryClient.getQueryCache().findAll({ queryKey: ["channels"] });
+  if (full) presenceStore.clear(); // member lists are refetched below
+  const isMessages = (key: readonly unknown[]) =>
+    key.length === 3 && key[2] === "messages" && (key[0] === "channels" || key[0] === "dms");
+  const isMembers = (key: readonly unknown[]) => key[0] === "servers" && key[2] === "members";
+  const messageQueries = queryClient
+    .getQueryCache()
+    .findAll({ predicate: (query) => isMessages(query.queryKey) });
   void queryClient.invalidateQueries({
-    predicate: (query) => query.queryKey[0] !== "channels", // messages are backfilled instead
+    predicate: ({ queryKey }) =>
+      !isMessages(queryKey) && // messages are backfilled instead
+      (full || LIVE_ROOTS.has(String(queryKey[0])) || isMembers(queryKey)),
   });
   await Promise.all(
-    messageQueries
-      .map((query) => query.queryKey)
-      .filter((key) => key.length === 3 && key[2] === "messages")
-      .map((key) => backfillChannel(queryClient, String(key[1])).catch(() => undefined)),
+    messageQueries.map(({ queryKey }) =>
+      backfill(queryClient, {
+        kind: queryKey[0] === "channels" ? "channel" : "dm",
+        id: String(queryKey[1]),
+      }).catch(() => undefined),
+    ),
   );
 }
 
 export function RealtimeProvider({ myId, children }: { myId: string; children: ReactNode }) {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const { serverId } = useParams<{ serverId?: string }>();
+  const { serverId, dmId } = useParams<{ serverId?: string; dmId?: string }>();
   const [status, setStatus] = useState<ConnectionStatus>("closed");
   const clientRef = useRef<RealtimeClient | null>(null);
   // Handlers read the latest route without reconnecting when it changes.
-  const latest = useRef({ serverId, router });
+  const latest = useRef({ serverId, dmId, router });
   useEffect(() => {
-    latest.current = { serverId, router };
+    latest.current = { serverId, dmId, router };
   });
 
   useEffect(() => {
@@ -203,6 +287,13 @@ export function RealtimeProvider({ myId, children }: { myId: string; children: R
       toast.info(reason);
       latest.current.router.replace("/channels/me");
     };
+    const leaveDM = (id: string) => {
+      if (latest.current.dmId !== id) return;
+      toast.info("You're no longer in that conversation.");
+      latest.current.router.replace("/channels/me");
+    };
+    const onNotification = (notification: AppNotification) =>
+      showBrowserNotification(notification, (href) => latest.current.router.push(href));
     const client = new RealtimeClient({
       url: () => wsUrl("/ws/", window.location),
       onStatus: setStatus,
@@ -214,13 +305,15 @@ export function RealtimeProvider({ myId, children }: { myId: string; children: R
       },
       onEvent: (event) => {
         if (event.type === "ready") {
-          if (connectedBefore) void resync(queryClient);
+          void resync(queryClient, { full: connectedBefore });
           connectedBefore = true;
         }
         applyEvent(queryClient, event, {
           myId,
           serverId: latest.current.serverId,
           leaveServer,
+          leaveDM,
+          onNotification,
         });
       },
     });

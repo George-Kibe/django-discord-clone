@@ -7,7 +7,11 @@ CSRF_TRUSTED_ORIGINS = [*CSRF_TRUSTED_ORIGINS, "http://localhost:3000", "http://
 
 INSTALLED_APPS += ["debug_toolbar"]
 MIDDLEWARE.insert(1, "debug_toolbar.middleware.DebugToolbarMiddleware")
-DEBUG_TOOLBAR_CONFIG = {"SHOW_TOOLBAR_CALLBACK": lambda request: DEBUG}
+# Only on HTML pages (admin). On the JSON API the toolbar adds nothing, and its history panel
+# re-reads request bodies after ASGI closed them (500s on PATCH/DELETE under load).
+DEBUG_TOOLBAR_CONFIG = {
+    "SHOW_TOOLBAR_CALLBACK": lambda request: DEBUG and not request.path.startswith("/api/")
+}
 
 REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"] = [
     "rest_framework.renderers.JSONRenderer",

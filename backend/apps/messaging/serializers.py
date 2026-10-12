@@ -140,18 +140,20 @@ def _clean_content(value: str) -> str:
     return value.strip("\n")
 
 
+class AttachmentRefSerializer(serializers.Serializer[dict[str, Any]]):
+    public_id = serializers.CharField(
+        max_length=255, help_text="From POST /media/sign (purpose=attachment), uploaded."
+    )
+    filename = serializers.CharField(max_length=255, help_text="The original file name.")
+
+
 class MessageWriteSerializer(serializers.Serializer[dict[str, Any]]):
     content = serializers.CharField(
         max_length=MAX_MESSAGE_LENGTH, trim_whitespace=False, allow_blank=True, default=""
     )
     nonce = serializers.CharField(max_length=64, required=False, allow_blank=True, allow_null=True)
     reply_to = serializers.UUIDField(required=False, allow_null=True)
-    attachments = serializers.ListField(
-        child=serializers.CharField(max_length=255),
-        required=False,
-        max_length=MAX_ATTACHMENTS,
-        help_text="public_ids from POST /media/sign (purpose=attachment), uploaded to Cloudinary.",
-    )
+    attachments = AttachmentRefSerializer(many=True, required=False, max_length=MAX_ATTACHMENTS)  # type: ignore[call-arg]  # DRF supports it; stubs lag
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         content = _clean_content(attrs.get("content", ""))
