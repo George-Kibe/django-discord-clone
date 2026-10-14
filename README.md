@@ -2,7 +2,7 @@
 
 A real-time chat platform in the style of Discord: servers, channels, roles, direct messages, presence, reactions, polls and more. It has a **Django REST Framework + Django Channels** backend and a **Next.js + Tailwind CSS** frontend, and it runs in Docker for both development and production.
 
-> **Status:** rewrite in progress. The original Django/Jinja app ("StudyBuddy") is kept in [`legacy/`](legacy/) for reference until the new stack reaches feature parity. See [docs/ROADMAP.md](docs/ROADMAP.md) for the current phase.
+> **Status:** feature-complete rewrite (v0.7.0); hardening and launch are next. The original Django/Jinja app ("StudyBuddy") was removed at feature parity and lives on in Git history (tag `v0.6.0` and earlier, `legacy/`). See [docs/ROADMAP.md](docs/ROADMAP.md) for the current phase.
 
 ---
 
@@ -44,7 +44,6 @@ Version policy and the reasons behind each choice are in [docs/DECISIONS.md](doc
 ├── frontend/           # Next.js application
 ├── infra/              # Caddyfile, backup scripts, deployment helpers
 ├── docs/               # Project documentation
-├── legacy/             # Original Django/Jinja app (read-only, removed at parity)
 ├── .github/workflows/  # CI/CD pipelines
 ├── compose.yaml        # Base Docker Compose services
 ├── compose.override.yaml  # Development overrides (loaded automatically)

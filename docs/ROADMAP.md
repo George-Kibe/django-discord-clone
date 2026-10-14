@@ -158,7 +158,7 @@ The production pipeline (Phase 2) was built early and is rehearsed against produ
 - [ ] Performance: load test (k6/Locust) at 2× expected load, Lighthouse ≥ 90 performance/accessibility
 - [ ] Coverage targets met (NFR-MNT-01)
 - [ ] Docs complete: user guide, operations runbooks, incident checklist
-- [ ] Delete `legacy/` (ADR-018)
+- [x] Delete `legacy/` (ADR-018): done in v0.7.0, at feature parity
 - [ ] Tag `v1.0.0`, GitHub Release
 
 **Exit criteria:** every M and S requirement is met. Restore drill performed within the last 30 days. Zero open high/critical security findings.
