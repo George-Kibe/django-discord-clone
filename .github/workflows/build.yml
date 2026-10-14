@@ -47,12 +47,17 @@ jobs:
             type=sha,format=long,prefix=
             type=raw,value=main,enable={{is_default_branch}}
             type=semver,pattern={{version}}
+      # Changes daily, so OS-package layers can't stay frozen in the build cache (see infra/backup/Dockerfile).
+      - id: date
+        run: echo "today=$(date -u +%F)" >> "$GITHUB_OUTPUT"
       - name: Build (local, for scanning)
         uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.context }}
           target: ${{ matrix.target }}
+          pull: true
           build-args: |
+            APT_REFRESH=${{ steps.date.outputs.today }}
             GIT_SHA=${{ github.sha }}
             NEXT_PUBLIC_SENTRY_DSN=${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
             SENTRY_ORG=${{ vars.SENTRY_ORG }}
@@ -75,7 +80,9 @@ jobs:
         with:
           context: ${{ matrix.context }}
           target: ${{ matrix.target }}
+          pull: true
           build-args: |
+            APT_REFRESH=${{ steps.date.outputs.today }}
             GIT_SHA=${{ github.sha }}
             NEXT_PUBLIC_SENTRY_DSN=${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
             SENTRY_ORG=${{ vars.SENTRY_ORG }}

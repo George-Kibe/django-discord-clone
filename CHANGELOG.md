@@ -34,6 +34,7 @@ Pre-launch audit: every Must/Should requirement checked against the code, gaps c
 - After a reconnect, edits, deletions, reactions and poll changes made to already-loaded messages while you were disconnected now show up (previously only new messages were fetched).
 - A message sent before a conversation's history had loaded could be missing from the list until a reload.
 - Deleting a server could leave you on its settings page when the network was slow; you now go straight Home.
+- The backup image failed its vulnerability scan: its OS packages came from a stale CI build-cache layer and missed Debian's curl security fix. That layer is now rebuilt daily with upgrades.
 
 ## [0.7.0] - 2026-10-13
 
