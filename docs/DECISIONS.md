@@ -36,7 +36,7 @@ Lightweight ADRs. Each records a decision, its context and its consequences. ADR
 | 015 | PostgreSQL full-text search | Accepted |
 | 016 | Uvicorn as the ASGI server | Accepted |
 | 017 | OpenAPI-first contract with generated TypeScript types | Accepted |
-| 018 | Keep legacy code in `legacy/` until parity | Accepted |
+| 018 | Keep legacy code in `legacy/` until parity | Accepted (completed: removed in v0.7.0) |
 | 019 | Conventional Commits, SemVer, Keep a Changelog | Accepted |
 | 020 | shadcn/ui + TanStack Query on the frontend | Accepted |
 | 021 | Celery beat with a static schedule (no django-celery-beat) | Accepted |
@@ -312,6 +312,8 @@ Move the existing apps (`base`, `polls`, `signalstest`, `studybuddy`, templates,
 
 ### Consequences
 Reference stays at hand without polluting the new codebase.
+
+**Update 2026-10-14:** feature parity arrived with Phase 6, so `legacy/` was removed in v0.7.0, earlier than v1.0. It remains in Git history (tag `v0.6.0`).
 
 ## ADR-019: Conventional Commits, SemVer, Keep a Changelog
 - **Status:** Accepted

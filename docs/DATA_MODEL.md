@@ -250,7 +250,7 @@ The Python source of truth is `apps/core/permissions.py` (an `IntFlag`). The fro
 
 ## Migration from the legacy database
 
-The legacy app used SQLite with the `base_*` tables. Migrating data is **optional**, because the legacy app was never deployed with real users. If needed, a one-off management command `import_legacy` maps:
+The legacy app (removed in v0.7.0; see tag `v0.6.0` for its code) used SQLite with the `base_*` tables. Migrating data is **optional**, because the legacy app was never deployed with real users. If needed, a one-off management command `import_legacy` maps:
 
 - `base.User` → `accounts.User` (passwords are kept: Django's hasher upgrades them on next login)
 - `base.Topic` → `servers.Topic`
