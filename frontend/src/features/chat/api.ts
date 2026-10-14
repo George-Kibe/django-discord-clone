@@ -182,6 +182,23 @@ export function patchReaction(
   );
 }
 
+/**
+ * Applies a freshly fetched newest page (newest first) to the cache: messages in that range are
+ * replaced (edits, reactions, polls changed while we weren't listening) and ones that no longer
+ * exist there are dropped (deleted meanwhile). Pending messages and older pages are untouched.
+ */
+export function refreshRecent(data: Pages | undefined, fresh: ChatMessage[]): Pages | undefined {
+  if (!data || fresh.length === 0) return data;
+  const byId = new Map(fresh.map((m) => [m.id, m]));
+  const newest = fresh[0].id;
+  const oldest = fresh[fresh.length - 1].id;
+  return mapMessages(data, (m) => {
+    // Outside the fetched range (older, or arrived live after the request): leave it alone.
+    if (m.pending || m.id < oldest || m.id > newest) return m;
+    return byId.get(m.id) ?? null;
+  });
+}
+
 const BACKFILL_PAGES = 5;
 
 /**
@@ -190,15 +207,15 @@ const BACKFILL_PAGES = 5;
  */
 export async function backfill(queryClient: QueryClient, c: Conversation) {
   const key = messageKeys.of(c);
+  // Changes to messages we already had (edits, deletes, reactions, polls).
+  const recent = await fetchPage(c, { limit: PAGE_SIZE });
+  queryClient.setQueryData<Pages>(key, (old) =>
+    newestRealId(old) ? refreshRecent(old, recent.results) : mergeHistory(old, recent.results),
+  );
+  // Then everything newer than what we have, a few pages at most.
   for (let page = 0; page < BACKFILL_PAGES; page++) {
     const after = newestRealId(queryClient.getQueryData<Pages>(key));
-    if (!after) {
-      // Nothing loaded yet (an empty conversation): merge the newest page. Never refetch the
-      // query wholesale: a stale response would overwrite messages sent meanwhile.
-      const newest = await fetchPage(c, { limit: PAGE_SIZE });
-      queryClient.setQueryData<Pages>(key, (old) => mergeHistory(old, newest.results));
-      return;
-    }
+    if (!after) return;
     const data = await fetchPage(c, { after, limit: 100 });
     queryClient.setQueryData<Pages>(key, (old) => mergeNewest(old, data.results));
     if (!data.has_more) return;
@@ -332,8 +349,14 @@ export function useSendMessage(c: Conversation, author: Message["author"]) {
           : old,
       );
     },
-    onSuccess: (message) =>
-      queryClient.setQueryData<Pages>(key, (old) => mergeNewest(old, [message])),
+    onSuccess: (message) => {
+      if (!queryClient.getQueryData<Pages>(key)) {
+        // History hadn't loaded yet: its response may predate this message, so fetch again.
+        void queryClient.invalidateQueries({ queryKey: key, exact: true });
+        return;
+      }
+      queryClient.setQueryData<Pages>(key, (old) => mergeNewest(old, [message]));
+    },
     onError: (_error, { nonce }) =>
       queryClient.setQueryData<Pages>(key, (old) =>
         mapMessages(old, (m) => (m.nonce === nonce && m.pending ? { ...m, failed: true } : m)),

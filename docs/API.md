@@ -141,7 +141,8 @@ Request and response shapes are in the OpenAPI schema. ✱ = requires a verified
 | PATCH/DELETE | `/categories/{id}` | |
 | GET/POST | `/servers/{id}/channels` | Visible channels / create (MANAGE_CHANNELS) |
 | PATCH/DELETE | `/channels/{id}` | |
-| PATCH | `/servers/{id}/channels/reorder` | |
+| PATCH | `/servers/{id}/channels/reorder` | `{channels: [{id, category_id, position}]}` |
+| PATCH | `/servers/{id}/categories/reorder` | `{category_ids}`: every category, top to bottom (MANAGE_CHANNELS). Emits `category.reordered` |
 | GET/PUT | `/channels/{id}/overwrites` | List, or create/replace one: `{role_id \| user_id, allow, deny}` (MANAGE_CHANNELS + MANAGE_ROLES, hierarchy and grant rules) |
 | DELETE | `/channels/{id}/overwrites/{overwrite_id}` | Remove an overwrite |
 | POST | `/channels/{id}/ack` | `{message_id}` → mark read (resets the mention count) |
@@ -195,7 +196,7 @@ Request and response shapes are in the OpenAPI schema. ✱ = requires a verified
 | POST | `/notifications/read` | `{ids}` or `{all: true}` |
 | GET/PUT | `/mute-settings` | PUT `{target_type: server\|channel\|dm, target_id, muted, muted_until?}`. Muted targets skip @everyone/@role and DM notifications; direct @mentions and replies still notify |
 | POST | `/media/sign` | Signed Cloudinary upload params. `purpose=attachment` takes images (`image` resources with previews) and files like pdf, txt, zip, docx (`raw`), up to 10 MB |
-| POST | `/exports` | `{channel_id \| dm_id, date_from?, date_to?}` → `202` with the job. Channels need EXPORT_TRANSCRIPTS; DM participants can always export. At most 3 running per user |
+| POST | `/exports` | `{channel_id \| dm_id, date_from?, date_to?}` → `202` with the job. Channels need MANAGE_MESSAGES or EXPORT_TRANSCRIPTS; DM participants can always export. At most 3 running per user |
 | GET | `/exports/{id}` | Your job's status (`pending/running/done/failed/expired`) and, when done, a `download_url` signed for 15 minutes |
 | GET | `/exports/{id}/download?token=` | The PDF (yours only). Files are deleted 24 h after completion |
 | GET | `/health/live` · `/health/ready` | Health checks (unauthenticated, outside `/v1`) |

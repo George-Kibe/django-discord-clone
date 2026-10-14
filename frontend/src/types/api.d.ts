@@ -877,6 +877,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/servers/{server_id}/categories/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Reorder categories */
+        patch: operations["servers_categories_reorder_partial_update"];
+        trace?: never;
+    };
     "/api/v1/servers/{server_id}/channels": {
         parameters: {
             query?: never;
@@ -1756,6 +1773,10 @@ export interface components {
             uid: string;
             token: string;
             password: string;
+        };
+        PatchedCategoryReorderRequest: {
+            /** @description Every category of the server, top to bottom. */
+            category_ids?: string[];
         };
         PatchedCategoryRequest: {
             name?: string;
@@ -3691,6 +3712,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Category"];
+                };
+            };
+        };
+    };
+    servers_categories_reorder_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedCategoryReorderRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Category"][];
                 };
             };
         };

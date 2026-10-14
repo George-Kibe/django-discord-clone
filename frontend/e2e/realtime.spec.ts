@@ -1,6 +1,15 @@
 import { expect, test } from "@playwright/test";
 
-import { live, memberRow, messageAction, newUser, send, sharedServer } from "./realtime-helpers";
+import {
+  apiPut,
+  live,
+  memberRow,
+  messageAction,
+  newUser,
+  realtimeReady,
+  send,
+  sharedServer,
+} from "./realtime-helpers";
 
 test.describe("real-time (Phase 4)", () => {
   test("messages, typing, presence and unread state are live", async ({ browser }) => {
@@ -65,6 +74,7 @@ test.describe("real-time (Phase 4)", () => {
 
     // Unread on the server icon while the owner is elsewhere.
     await owner.page.goto("/channels/me");
+    await realtimeReady(owner.page);
     await send(guest.page, "ping from general");
     await expect(
       owner.page.getByTestId("server-list").getByRole("link", { name: "Live Room (unread)" }),
@@ -75,6 +85,7 @@ test.describe("real-time (Phase 4)", () => {
     await guest.page.getByTestId("status-menu").click();
     await guest.page.getByRole("menuitemradio", { name: "Do not disturb" }).click();
     await owner.page.goto(`/channels/${serverId}`);
+    await realtimeReady(owner.page);
     await expect(memberRow(owner.page, guest.user.username)).toHaveAttribute(
       "data-presence",
       "dnd",
@@ -111,10 +122,22 @@ test.describe("real-time (Phase 4)", () => {
     await expect(live(owner.page, "connection-banner")).toBeVisible();
     await send(guest.page, "sent while you were away");
     await expect(live(guest.page, "message").last()).toHaveAttribute("data-pending", "false");
+    // Changes to a message the owner already had: an edit and a reaction.
+    const earlier = live(guest.page, "message").filter({ hasText: "before the outage" });
+    await messageAction(earlier, "Edit message");
+    const editor = guest.page.getByRole("textbox", { name: "Edit message" });
+    await editor.fill("before the outage (edited)");
+    await editor.press("Enter");
+    await expect(earlier).toContainText("(edited)");
+    const messageId = await earlier.getAttribute("data-message-id");
+    await apiPut(guest.page, `/api/v1/messages/${messageId}/reactions/${encodeURIComponent("🔥")}`);
 
     blocked = false;
     await expect(live(owner.page, "connection-banner")).toBeHidden({ timeout: 20_000 });
     await expect(live(owner.page, "message-list")).toContainText("sent while you were away");
+    const ownerEarlier = live(owner.page, "message").filter({ hasText: "before the outage" });
+    await expect(ownerEarlier).toContainText("before the outage (edited)");
+    await expect(ownerEarlier.getByTestId("reaction")).toContainText("1");
     await send(guest.page, "and after");
     await expect(live(owner.page, "message-list")).toContainText("and after");
     for (const text of ["before the outage", "sent while you were away", "and after"]) {

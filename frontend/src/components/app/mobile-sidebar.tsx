@@ -1,6 +1,7 @@
 "use client";
 
 import { Menu } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,12 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 
 /** On small screens the sidebar lives in a drawer (NFR-UX-01). */
 export function MobileSidebar({ children, label }: { children: ReactNode; label: string }) {
-  const [open, setOpen] = useState(false);
+  // Open "for" the page it was opened on: any navigation (a link, or code such as starting a
+  // DM from a dialog inside the drawer) closes it.
+  const pathname = usePathname();
+  const [openOn, setOpenOn] = useState<string | null>(null);
+  const open = openOn === pathname;
+  const setOpen = (next: boolean) => setOpenOn(next ? pathname : null);
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>

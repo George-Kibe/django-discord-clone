@@ -75,6 +75,7 @@ export type GatewayEvents = {
   "category.created": { server_id: string; id: string };
   "category.updated": { server_id: string; id: string };
   "category.deleted": { server_id: string; id: string };
+  "category.reordered": { server_id: string };
   "role.created": { server_id: string; id: string };
   "role.updated": { server_id: string; id: string };
   "role.deleted": { server_id: string; id: string };

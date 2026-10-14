@@ -95,6 +95,23 @@ def delete_category(access: ServerAccess, category: Category) -> None:
     events.server_changed(access.server.pk, "category.deleted", id=category_id)
 
 
+@transaction.atomic
+def reorder_categories(access: ServerAccess, ordered_ids: list[Any]) -> None:
+    """FR-CH-02: ``ordered_ids`` lists every category of the server, top to bottom."""
+    access.require(Perm.MANAGE_CHANNELS)
+    categories = {
+        c.pk: c for c in Category.objects.select_for_update().filter(server=access.server)
+    }
+    if set(ordered_ids) != set(categories) or len(ordered_ids) != len(categories):
+        raise exceptions.ValidationError(
+            {"category_ids": ["List every category of the server exactly once."]}
+        )
+    for position, category_id in enumerate(ordered_ids):
+        categories[category_id].position = position
+    Category.objects.bulk_update(list(categories.values()), ["position"])
+    events.server_changed(access.server.pk, "category.reordered")
+
+
 # ---------------------------------------------------------------------------- channels
 
 

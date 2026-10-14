@@ -118,7 +118,10 @@ export function MembersTab({ server }: { server: ServerDetail }) {
             <p className="flex items-center gap-1 truncate font-medium">
               {displayName(member)}
               {member.is_owner ? (
-                <Crown className="size-3.5 text-amber-400" aria-label="Server owner" />
+                <Crown
+                  className="size-3.5 text-amber-600 dark:text-amber-400"
+                  aria-label="Server owner"
+                />
               ) : null}
             </p>
             <p className="truncate text-xs text-muted-foreground">@{member.user.username}</p>

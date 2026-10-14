@@ -107,7 +107,9 @@ export function MessageList({
   return (
     <div
       ref={parentRef}
-      className="min-h-0 flex-1 overflow-y-auto"
+      className="min-h-0 flex-1 overflow-y-auto focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
+      // Keyboard users can focus the log and scroll it with the arrow keys (WCAG 2.1.1).
+      tabIndex={0}
       role="log"
       aria-live="polite"
       aria-label={`Messages in ${channelName}`}

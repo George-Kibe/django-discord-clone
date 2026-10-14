@@ -4,6 +4,11 @@ from . import views
 
 server_urlpatterns = [
     path("<uuid:server_id>/categories", views.CategoryListView.as_view(), name="server-categories"),
+    path(
+        "<uuid:server_id>/categories/reorder",
+        views.CategoryReorderView.as_view(),
+        name="server-categories-reorder",
+    ),
     path("<uuid:server_id>/channels", views.ChannelListView.as_view(), name="server-channels"),
     path(
         "<uuid:server_id>/channels/reorder",

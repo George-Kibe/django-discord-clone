@@ -64,7 +64,8 @@ export function ChannelPage() {
         <>
           <MuteButton target={{ type: "channel", id: channel.id }} />
           <PinsButton conversation={{ kind: "channel", id: channel.id }} />
-          {hasPerm(channel.permissions, "EXPORT_TRANSCRIPTS") ? (
+          {hasPerm(channel.permissions, "EXPORT_TRANSCRIPTS") ||
+          hasPerm(channel.permissions, "MANAGE_MESSAGES") ? (
             <ExportButton
               conversation={{ kind: "channel", id: channel.id }}
               label={`#${channel.name}`}

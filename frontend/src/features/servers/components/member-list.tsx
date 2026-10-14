@@ -216,7 +216,7 @@ export function MemberList({ serverId }: { serverId: string }) {
                     </span>
                     {member.is_owner ? (
                       <Crown
-                        className="size-3.5 shrink-0 text-amber-400"
+                        className="size-3.5 shrink-0 text-amber-600 dark:text-amber-400"
                         aria-label="Server owner"
                       />
                     ) : null}

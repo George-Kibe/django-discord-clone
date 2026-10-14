@@ -1,7 +1,41 @@
 import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 
+/**
+ * Content-Security-Policy (NFR-SEC-07, ADR-027). Scripts may only come from this origin;
+ * 'unsafe-inline' is needed for Next's inline bootstrap without per-request nonces (which would
+ * force dynamic rendering). Images and uploads may also use Cloudinary.
+ */
+export function contentSecurityPolicy(dev: boolean): string {
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'unsafe-inline'${dev ? " 'unsafe-eval'" : ""}`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https://res.cloudinary.com",
+    "media-src 'self' https://res.cloudinary.com",
+    "font-src 'self' data:",
+    "connect-src 'self' https://api.cloudinary.com",
+    "frame-ancestors 'none'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join("; ");
+}
+
 const nextConfig: NextConfig = {
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: contentSecurityPolicy(process.env.NODE_ENV === "development"),
+          },
+        ],
+      },
+    ];
+  },
   // Self-contained server bundle for the production Docker image (docs/DEPLOYMENT.md §4).
   output: "standalone",
   poweredByHeader: false,

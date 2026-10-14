@@ -98,6 +98,31 @@ describe("conversations", () => {
   });
 });
 
+describe("refreshRecent", () => {
+  it("updates edited messages, drops deleted ones, keeps older and pending ones", async () => {
+    const { refreshRecent } = await import("./api");
+    const data = pages(
+      [
+        msg("pending-x", { pending: true }),
+        msg("06"), // arrived live while the refresh was in flight
+        msg("05"),
+        msg("04", { content: "old" }),
+        msg("03"),
+      ],
+      [msg("01")],
+    );
+    // The server's newest page: 04 was edited, 03 deleted; 02 is outside the cached range.
+    const next = refreshRecent(data, [msg("05"), msg("04", { content: "edited" }), msg("02")]);
+    expect(next!.pages[0].results.map((m) => [m.id, m.content])).toEqual([
+      ["pending-x", "pending-x"],
+      ["06", "06"],
+      ["05", "05"],
+      ["04", "edited"],
+    ]);
+    expect(next!.pages[1].results.map((m) => m.id)).toEqual(["01"]);
+  });
+});
+
 describe("backfill", () => {
   it("merges into an empty conversation instead of replacing it", async () => {
     const { QueryClient } = await import("@tanstack/react-query");
@@ -116,5 +141,26 @@ describe("backfill", () => {
       .getQueryData<ReturnType<typeof pages>>(key)!
       .pages[0].results.map((m) => m.id);
     expect(ids).toEqual(["pending-n", "1"]); // newest first: the message being sent stays on top
+  });
+});
+
+describe("useSendMessage before history loads", () => {
+  it("refetches the conversation instead of dropping the message", async () => {
+    const { QueryClient, QueryClientProvider } = await import("@tanstack/react-query");
+    const { renderHook, waitFor } = await import("@testing-library/react");
+    const { createElement } = await import("react");
+    const { vi } = await import("vitest");
+    const client = await import("@/lib/api/client");
+    const { useSendMessage } = await import("./api");
+    const queryClient = new QueryClient();
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+    vi.spyOn(client.api, "POST").mockResolvedValue({ data: msg("1", { nonce: "n" }) } as never);
+    const { result } = renderHook(() => useSendMessage({ kind: "dm", id: "d" }, null), {
+      wrapper: ({ children }) =>
+        createElement(QueryClientProvider, { client: queryClient }, children),
+    });
+    result.current.mutate({ content: "hi", nonce: "n" });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["dms", "d", "messages"], exact: true });
   });
 });

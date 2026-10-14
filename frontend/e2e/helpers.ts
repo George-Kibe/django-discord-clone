@@ -41,6 +41,8 @@ export async function linkFromEmail(
 
 export async function register(page: Page, user: ReturnType<typeof uniqueUser>) {
   await page.goto("/register");
+  // Submit buttons are enabled once React has hydrated; typing earlier can be lost.
+  await expect(page.getByRole("button", { name: "Create account" })).toBeEnabled();
   await page.getByLabel("Email").fill(user.email);
   await page.getByLabel("Username").fill(user.username);
   await page.getByLabel("Password").fill(user.password);
@@ -50,6 +52,7 @@ export async function register(page: Page, user: ReturnType<typeof uniqueUser>) 
 
 export async function login(page: Page, email: string, password = PASSWORD) {
   await page.goto("/login");
+  await expect(page.getByRole("button", { name: "Sign in" })).toBeEnabled();
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Sign in" }).click();

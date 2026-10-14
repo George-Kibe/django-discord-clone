@@ -28,7 +28,7 @@ export function DMAvatar({ dm, className }: { dm: DMConversation; className?: st
   const other = dm.recipients[0];
   const presence = live.get(other.id)?.status ?? other.presence;
   return (
-    <span className="relative shrink-0">
+    <span className="relative inline-flex shrink-0">
       <UserAvatar user={other} className={cn("size-8", className)} />
       <PresenceDot status={presence} />
     </span>

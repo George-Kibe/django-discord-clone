@@ -112,6 +112,8 @@ When sending through Gmail, a `DEFAULT_FROM_EMAIL` at `localhost` is replaced by
 - **Vitest** + Testing Library for components and hooks. **MSW** mocks the API. The realtime client is tested against a fake WebSocket with fake timers.
 - **Playwright** E2E runs against the full Compose stack. It reads verification emails through the Mailpit API. Specs live in `frontend/e2e/`. The suite includes automated accessibility checks (axe, WCAG 2.2 AA) for every page. The avatar test uploads to the real Cloudinary account in `.env`, cleans up after itself, and skips itself when Cloudinary isn't configured (as in CI). `server-restart.spec.ts` restarts the `api` container mid-session. It runs in its own Playwright project after all other tests, and skips itself where `docker compose` isn't available.
 - Run E2E against both entry points: `make e2e` (Caddy, http://localhost) and `E2E_BASE_URL=http://localhost:3000 make e2e` (Next.js directly).
+- `<html data-realtime>` mirrors the gateway connection (`connecting`, `open`, `reconnecting`, `closed`). It is `open` once the gateway is subscribed. After a page load, specs wait for it (`realtimeReady()`) before triggering live events, which would otherwise be missed.
+- The dev API is a single `uvicorn --reload` process, so running many more Playwright workers than the default (half the CPU cores) makes live-event assertions time out. Measure capacity with `realtime_loadtest` (below) instead.
 
 ### Real-time load test
 
@@ -185,4 +187,5 @@ This opens N gateway connections as throwaway users in one server, posts message
 | No emails in Mailpit | Check `docker compose logs worker`. Emails are sent by the Celery worker after the database commit. Real addresses go to your SMTP/Gmail account when one is configured, not to Mailpit |
 | Gmail emails don't arrive | Check `docker compose logs worker` for SMTP errors. Gmail needs an app password (2-Step Verification on). Look in spam: local links point at `localhost` |
 | "Reconnecting…" banner won't go away | Check `docker compose logs api` for WebSocket errors and that `redis` is healthy. Behind another proxy, make sure it forwards WebSocket upgrades for `/ws/` |
+| A CSS or config change doesn't show up | Turbopack's persistent cache can go stale (seen with in-place edits such as `sed -i`). Run `docker compose exec web rm -rf .next/dev/cache .next/cache` and `docker compose restart web` |
 | Stuck on a loading spinner after login | The `session` cookie exists but the API rejects the tokens. Clear the site's cookies or log out |

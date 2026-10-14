@@ -1723,6 +1723,36 @@ paths:
               schema:
                 $ref: '#/components/schemas/Category'
           description: ''
+  /api/v1/servers/{server_id}/categories/reorder:
+    patch:
+      operationId: servers_categories_reorder_partial_update
+      summary: Reorder categories
+      parameters:
+      - in: path
+        name: server_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - channels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCategoryReorderRequest'
+      security:
+      - jwtCookieAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+          description: ''
   /api/v1/servers/{server_id}/channels:
     get:
       operationId: servers_channels_list
@@ -3750,6 +3780,15 @@ components:
       - password
       - token
       - uid
+    PatchedCategoryReorderRequest:
+      type: object
+      properties:
+        category_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Every category of the server, top to bottom.
     PatchedCategoryRequest:
       type: object
       properties:

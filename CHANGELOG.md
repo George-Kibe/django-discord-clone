@@ -6,6 +6,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-10-14
+
+Pre-launch audit: every Must/Should requirement checked against the code, gaps closed.
+
+### Added
+
+- Light theme and "match system", next to the default dark theme (account menu › Theme).
+- A Content-Security-Policy on every page (ADR-027).
+- Creating a server can set its icon, description, topic and public listing right away.
+- Mute a whole server from the server menu.
+- Reorder categories (category menu › Move up / Move down).
+- Request IDs follow work into WebSocket handling and Celery tasks, so logs line up end to end.
+
+### Changed
+
+- Members with Manage Messages can export transcripts (as the requirements say), as well as those with Export Transcripts.
+- A page of 50 messages is loaded with at most 5 queries for the messages themselves.
+- On phones the account button in the top bar shows just the avatar.
+
+### Fixed
+
+- On mobile, starting a DM from the Home drawer left the drawer open over the conversation.
+- The "Server muted" confirmation didn't appear.
+- Several texts failed colour contrast in the light theme (timestamps on highlighted messages, the verified badge, form success messages).
+- The message list can be focused and scrolled with the keyboard when no message inside it is focusable.
+- After a reconnect, edits, deletions, reactions and poll changes made to already-loaded messages while you were disconnected now show up (previously only new messages were fetched).
+- A message sent before a conversation's history had loaded could be missing from the list until a reload.
+- Deleting a server could leave you on its settings page when the network was slow; you now go straight Home.
+
 ## [0.7.0] - 2026-10-13
 
 Phase 6: community features.
@@ -167,7 +196,8 @@ Phase 0: foundations.
 
 - Original "StudyBuddy" Django/Jinja application: topics, rooms, messages, participants, activity feed, user profiles, a polls app, rooms PDF export and login/logout audit signals. This code moves to `legacy/` in Phase 0 of the rewrite.
 
-[Unreleased]: https://github.com/George-Kibe/django-discord-clone/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/George-Kibe/django-discord-clone/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/George-Kibe/django-discord-clone/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/George-Kibe/django-discord-clone/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/George-Kibe/django-discord-clone/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/George-Kibe/django-discord-clone/compare/v0.4.0...v0.5.0

@@ -1,7 +1,8 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { LogOut, Settings, UserRound } from "lucide-react";
+import { LogOut, Monitor, Moon, Settings, Sun, UserRound } from "lucide-react";
+import { useTheme } from "next-themes";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -40,9 +41,11 @@ function useSetStatus() {
   });
 }
 
-export function UserPanel({ me }: { me: Me }) {
+/** ``compact``: avatar only (the mobile top bar has no room for the name). */
+export function UserPanel({ me, compact = false }: { me: Me; compact?: boolean }) {
   const logout = useLogout();
   const setStatus = useSetStatus();
+  const { theme = "dark", setTheme } = useTheme();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -54,7 +57,7 @@ export function UserPanel({ me }: { me: Me }) {
           <UserAvatar user={me} className="size-8" />
           <PresenceDot status={me.status} />
         </span>
-        <span className="min-w-0 flex-1">
+        <span className={compact ? "sr-only" : "min-w-0 flex-1"}>
           <span className="block truncate text-sm font-semibold">
             {me.display_name || me.username}
           </span>
@@ -62,7 +65,7 @@ export function UserPanel({ me }: { me: Me }) {
             {PRESENCE_LABEL[me.status]}
           </span>
         </span>
-        <Settings className="size-4 text-muted-foreground" aria-hidden />
+        {compact ? null : <Settings className="size-4 text-muted-foreground" aria-hidden />}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" side="top" className="w-56">
         <DropdownMenuLabel className="truncate">@{me.username}</DropdownMenuLabel>
@@ -84,6 +87,25 @@ export function UserPanel({ me }: { me: Me }) {
                   {PRESENCE_LABEL[status]}
                 </DropdownMenuRadioItem>
               ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger data-testid="theme-menu">
+            {theme === "light" ? (
+              <Sun aria-hidden />
+            ) : theme === "system" ? (
+              <Monitor aria-hidden />
+            ) : (
+              <Moon aria-hidden />
+            )}
+            Theme
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            <DropdownMenuRadioGroup value={theme} onValueChange={setTheme}>
+              <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="system">Match system</DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
           </DropdownMenuSubContent>
         </DropdownMenuSub>

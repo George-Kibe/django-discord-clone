@@ -137,6 +137,7 @@ The production pipeline (Phase 2) was built early and is rehearsed against produ
 - [x] Channel permission overwrites UI with a private-channel switch (FR-ROLE-05)
 - [x] Account deletion + personal data export (FR-AUTH-09, NFR-PRIV-02)
 - Fixed along the way: a reload during a token refresh could sign you out (rotation leeway, ADR-026); data fetched before the gateway's first `ready` could miss events (full catch-up on every connect); role names in server settings failed colour contrast
+- Pre-launch audit (v0.7.1): a requirement-by-requirement check found and closed these gaps: Content-Security-Policy (NFR-SEC-07, ADR-027), light and system themes (NFR-UX-03), server mute in the UI (FR-PRES-04), icon/description/topic/public when creating a server (FR-SRV-01), category reordering (FR-CH-02), Manage Messages may export (FR-EXP-01), the 50-message page in ≤ 5 queries (NFR-PERF-05), request IDs carried into WebSockets and Celery (NFR-OBS-01). Also covered now: 360 px mobile flows (NFR-UX-01)
 - Not in scope (Could): server reordering (FR-SRV-10), slow mode (FR-CH-05)
 
 **Exit criteria:** feature parity with the legacy app (topics, rooms → servers/channels, messages, participants → members, activity feed → inbox, profiles, polls, PDF export, login audit) plus all M/S requirements implemented (**met**: 401 backend tests, 100 unit tests, 34/34 E2E on both http://localhost and http://localhost:3000, with axe checks for the new UI).

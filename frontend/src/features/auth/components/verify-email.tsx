@@ -60,7 +60,7 @@ export function VerifyEmail() {
   const signedIn = hasSessionHint();
   return (
     <div className="grid gap-4 text-center" data-testid="verify-success">
-      <CircleCheck className="mx-auto size-10 text-emerald-400" aria-hidden />
+      <CircleCheck className="mx-auto size-10 text-emerald-600 dark:text-emerald-400" aria-hidden />
       <p role="status">Your email address is verified.</p>
       <Button asChild>
         <Link href={signedIn ? "/channels/me" : "/login"}>

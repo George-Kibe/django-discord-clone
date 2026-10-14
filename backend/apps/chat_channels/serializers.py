@@ -101,3 +101,9 @@ class ReadStateSerializer(serializers.Serializer[dict[str, Any]]):
     last_message_id = serializers.UUIDField(allow_null=True)
     last_read_message_id = serializers.UUIDField(allow_null=True)
     mention_count = serializers.IntegerField()
+
+
+class CategoryReorderSerializer(serializers.Serializer[dict[str, Any]]):
+    category_ids = serializers.ListField(
+        child=serializers.UUIDField(), help_text="Every category of the server, top to bottom."
+    )

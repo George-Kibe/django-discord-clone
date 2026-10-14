@@ -1,7 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { png } from "./fixtures";
-import { apiPost, live, messageAction, newUser, send, sharedServer } from "./realtime-helpers";
+import {
+  apiPost,
+  live,
+  messageAction,
+  newUser,
+  realtimeReady,
+  send,
+  sharedServer,
+} from "./realtime-helpers";
 
 /** Rich messaging & DMs (Phase 5). */
 
@@ -28,6 +36,7 @@ test.describe("rich messaging & DMs (Phase 5)", () => {
 
     // The owner goes elsewhere; the guest mentions them through autocomplete.
     await owner.page.goto("/channels/me");
+    await realtimeReady(owner.page);
     await typeMention(guest.page, owner.user.username.slice(0, 6), owner.user.username);
     await live(guest.page, "composer").pressSequentially("can you check this?");
     await live(guest.page, "composer").press("Enter");
@@ -114,6 +123,7 @@ test.describe("rich messaging & DMs (Phase 5)", () => {
     const guest = await newUser(browser, "dm_guest");
     await sharedServer(owner.page, guest.page, "DM Club");
     await owner.page.goto("/channels/me");
+    await realtimeReady(owner.page);
 
     // Guest opens a DM from the owner's profile card (re-open it if a live refresh closed it).
     await expect(async () => {
@@ -145,6 +155,7 @@ test.describe("rich messaging & DMs (Phase 5)", () => {
 
     // The owner blocks the guest: their composer explains why, the guest can't send.
     await owner.page.goto("/channels/me");
+    await realtimeReady(owner.page);
     await apiPost(owner.page, "/api/v1/users/me/blocks", {
       user_id: (await (await guest.page.request.get("/api/v1/users/me")).json()).id,
     });
@@ -168,7 +179,9 @@ test.describe("rich messaging & DMs (Phase 5)", () => {
     const invite = await apiPost<{ code: string }>(a.page, `/api/v1/servers/${serverId}/invites`);
     await apiPost(c.page, `/api/v1/invites/${invite.code}/accept`);
     await a.page.goto("/channels/me");
+    await realtimeReady(a.page);
     await c.page.goto("/channels/me");
+    await realtimeReady(c.page);
 
     await a.page.getByTestId("new-dm").click();
     const dialog = a.page.getByRole("dialog", { name: "New message" });
@@ -254,7 +267,10 @@ test.describe("rich messaging & DMs (Phase 5)", () => {
     });
     await expect(received.getByTestId("file-attachment")).toContainText("notes.txt");
     await received.getByRole("button", { name: "Open image diagram.png" }).click();
-    await expect(guest.page.getByTestId("lightbox").getByRole("img")).toBeVisible();
+    // The full-size original comes straight from Cloudinary (first fetch can be slow).
+    await expect(guest.page.getByTestId("lightbox").getByRole("img")).toBeVisible({
+      timeout: 20_000,
+    });
     await guest.page.keyboard.press("Escape");
 
     // Deleting the message removes the files (from Cloudinary too, via the worker).

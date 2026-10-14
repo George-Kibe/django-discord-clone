@@ -69,7 +69,11 @@ class ReplyPreviewSerializer(serializers.Serializer[Message]):
         return message.deleted_at is not None
 
     def get_has_attachments(self, message: Message) -> bool:
-        return bool(message.attachments.all()) if message.deleted_at is None else False
+        if message.deleted_at is not None:
+            return False
+        # Annotated on the replying message by services.with_relations (no extra query).
+        known = self.context.get("has_attachments")
+        return bool(known) if known is not None else message.attachments.exists()
 
 
 class PollOptionResultSerializer(serializers.Serializer[dict[str, Any]]):
@@ -131,7 +135,8 @@ class MessageSerializer(serializers.ModelSerializer[Message]):
     def get_reply_to(self, message: Message) -> dict[str, Any] | None:
         if message.reply_to_id is None or message.reply_to is None:
             return None
-        return dict(ReplyPreviewSerializer(message.reply_to).data)
+        context = {"has_attachments": getattr(message, "reply_has_attachments", None)}
+        return dict(ReplyPreviewSerializer(message.reply_to, context=context).data)
 
     @extend_schema_field(ReactionSummarySerializer(many=True))
     def get_reactions(self, message: Message) -> list[dict[str, Any]]:

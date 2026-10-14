@@ -25,11 +25,11 @@ export function AccountSettings() {
           >
             {me.email}
             {me.email_verified ? (
-              <span className="inline-flex items-center gap-1 text-emerald-400">
+              <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
                 <BadgeCheck className="size-4" aria-hidden /> Verified
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 text-amber-400">
+              <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-400">
                 <MailWarning className="size-4" aria-hidden /> Not verified
               </span>
             )}

@@ -2,6 +2,10 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  ArrowDown,
+  ArrowUp,
+  Bell,
+  BellOff,
   ChevronDown,
   FolderPlus,
   Hash,
@@ -27,6 +31,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MentionBadge } from "@/components/mention-badge";
+import { isMuted, useMuteSettings, useSetMuted } from "@/features/notifications/api";
 import { useUnread } from "@/features/realtime/read-states";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
@@ -122,6 +127,29 @@ function ChannelLink({
 
 type DialogName = null | "invite" | "channel" | "category";
 
+/** FR-PRES-04: mute a whole server (unread markers off; direct mentions still notify). */
+function ServerMuteItem({ serverId }: { serverId: string }) {
+  const { data: settings } = useMuteSettings();
+  const setMuted = useSetMuted();
+  const target = { type: "server" as const, id: serverId };
+  const muted = isMuted(settings, target);
+  return (
+    <DropdownMenuItem
+      onSelect={() =>
+        // mutateAsync: the menu (and this item) unmounts on select, which would drop mutate()'s
+        // per-call callbacks.
+        void setMuted
+          .mutateAsync({ target, muted: !muted })
+          .then(() => toast.success(muted ? "Server unmuted." : "Server muted."))
+          .catch(() => toast.error("Couldn't change the mute setting."))
+      }
+    >
+      {muted ? <Bell aria-hidden /> : <BellOff aria-hidden />}
+      {muted ? "Unmute server" : "Mute server"}
+    </DropdownMenuItem>
+  );
+}
+
 function ServerMenu({
   server,
   onOpen,
@@ -173,6 +201,8 @@ function ServerMenu({
             </DropdownMenuItem>
           </>
         ) : null}
+        <DropdownMenuSeparator />
+        <ServerMuteItem serverId={server.id} />
         {!server.me.is_owner ? (
           <>
             <DropdownMenuSeparator />
@@ -186,8 +216,33 @@ function ServerMenu({
   );
 }
 
-function CategoryMenu({ category, serverId }: { category: Category; serverId: string }) {
+function CategoryMenu({
+  category,
+  serverId,
+  categories,
+}: {
+  category: Category;
+  serverId: string;
+  categories: Category[];
+}) {
   const queryClient = useQueryClient();
+  const ordered = [...categories].sort((a, b) => a.position - b.position);
+  const index = ordered.findIndex((c) => c.id === category.id);
+
+  /** FR-CH-02: swap with the neighbouring category. */
+  async function move(delta: -1 | 1) {
+    const next = [...ordered];
+    [next[index], next[index + delta]] = [next[index + delta], next[index]];
+    try {
+      await api.PATCH("/api/v1/servers/{server_id}/categories/reorder", {
+        params: { path: { server_id: serverId } },
+        body: { category_ids: next.map((c) => c.id) },
+      });
+      await queryClient.invalidateQueries({ queryKey: keys.categories(serverId) });
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "Couldn't move the category.");
+    }
+  }
   const [renaming, setRenaming] = useState(false);
   const refresh = () =>
     Promise.all([
@@ -220,6 +275,16 @@ function CategoryMenu({ category, serverId }: { category: Category; serverId: st
           <DropdownMenuItem onSelect={() => setRenaming(true)}>
             <Pencil aria-hidden /> Rename category
           </DropdownMenuItem>
+          {index > 0 ? (
+            <DropdownMenuItem onSelect={() => void move(-1)}>
+              <ArrowUp aria-hidden /> Move up
+            </DropdownMenuItem>
+          ) : null}
+          {index >= 0 && index < ordered.length - 1 ? (
+            <DropdownMenuItem onSelect={() => void move(1)}>
+              <ArrowDown aria-hidden /> Move down
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem variant="destructive" onSelect={remove}>
             <Trash2 aria-hidden /> Delete category
           </DropdownMenuItem>
@@ -256,6 +321,7 @@ function ChannelGroups({
 }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const { channels: unread, mentions } = useUnread();
+  const categories = groups.flatMap((g) => (g.category ? [g.category] : []));
   return (
     <nav aria-label="Channels" className="p-2">
       {groups.map(({ category, channels }) => {
@@ -277,7 +343,9 @@ function ChannelGroups({
                   />
                   {category.name}
                 </button>
-                {canManage ? <CategoryMenu category={category} serverId={serverId} /> : null}
+                {canManage ? (
+                  <CategoryMenu category={category} serverId={serverId} categories={categories} />
+                ) : null}
                 {canManage ? (
                   <button
                     type="button"

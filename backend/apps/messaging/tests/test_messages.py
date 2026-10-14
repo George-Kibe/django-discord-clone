@@ -178,3 +178,24 @@ def test_send_is_throttled(client_for, member, channel):
     for i in range(10):
         assert send(client, channel, f"spam {i}").status_code == 201
     assert send(client, channel, "one too many").status_code == 429
+
+
+def test_message_page_data_needs_at_most_five_queries(
+    client_for, user, make_user, server, join, channel, django_assert_max_num_queries
+):
+    """NFR-PERF-05: the 50 messages themselves (history, attachments, mentions, replies,
+    reactions) in ≤ 5 queries; authentication and permission checks come on top."""
+    from apps.messaging import services
+    from apps.messaging.targets import channel_target
+
+    for i in range(10):
+        author = make_user()
+        join(server, author)
+        first = send(client_for(author), channel, f"msg {i} <@{user.pk}>").json()
+        send(client_for(author), channel, "reply", reply_to=first["id"])
+        client_for(user).put(reverse("message-reaction", args=[first["id"], "👍"]))
+    target = channel_target(user, channel)
+    with django_assert_max_num_queries(5):
+        messages, _ = services.history(target, limit=50)
+        services.serialize(messages, user)
+    assert len(messages) == 20

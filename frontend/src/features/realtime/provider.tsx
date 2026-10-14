@@ -218,6 +218,7 @@ export function applyEvent(queryClient: QueryClient, event: GatewayEvent, ctx: E
     case "category.created":
     case "category.updated":
     case "category.deleted":
+    case "category.reordered":
       refetchServer(queryClient, event.data.server_id, ["channels", "categories"]);
       void queryClient.invalidateQueries({ queryKey: readStatesKey });
       return;
@@ -292,6 +293,10 @@ export function RealtimeProvider({ myId, children }: { myId: string; children: R
   useEffect(() => {
     latest.current = { serverId, dmId, router };
   });
+  // Exposed for diagnostics and E2E tests ("open" means subscribed, after `ready`).
+  useEffect(() => {
+    document.documentElement.dataset.realtime = status;
+  }, [status]);
 
   useEffect(() => {
     const leaveServer = (id: string, reason: string) => {

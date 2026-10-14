@@ -15,6 +15,7 @@ from . import services
 from .models import Category, Channel, PermissionOverwrite
 from .serializers import (
     AckSerializer,
+    CategoryReorderSerializer,
     CategorySerializer,
     ChannelReorderSerializer,
     ChannelSerializer,
@@ -54,6 +55,22 @@ class CategoryListView(APIView):
         serializer.is_valid(raise_exception=True)
         category = services.create_category(access, serializer.validated_data["name"])
         return Response(CategorySerializer(category).data, status=status.HTTP_201_CREATED)
+
+
+class CategoryReorderView(APIView):
+    @extend_schema(
+        request=CategoryReorderSerializer,
+        responses=CategorySerializer(many=True),
+        tags=TAGS,
+        summary="Reorder categories",
+    )
+    def patch(self, request: Request, server_id: UUID) -> Response:
+        access = get_access(current_user(request), server_id)
+        serializer = CategoryReorderSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.reorder_categories(access, serializer.validated_data["category_ids"])
+        categories = Category.objects.filter(server=access.server).order_by("position")
+        return Response(CategorySerializer(categories, many=True).data)
 
 
 class CategoryDetailView(APIView):

@@ -14,7 +14,7 @@ export function VerifyBanner({ me }: { me: Me }) {
       className="flex flex-col gap-3 border-b border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm sm:flex-row sm:items-center"
       data-testid="verify-banner"
     >
-      <MailWarning className="size-5 shrink-0 text-amber-400" aria-hidden />
+      <MailWarning className="size-5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
       <p className="flex-1">
         Verify your email address (<strong>{me.email}</strong>) to start chatting. Check your inbox
         for the link.

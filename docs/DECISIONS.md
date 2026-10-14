@@ -45,6 +45,7 @@ Lightweight ADRs. Each records a decision, its context and its consequences. ADR
 | 024 | Gateway: automatic subscriptions, close-on-expiry, patch hot data | Accepted |
 | 025 | Messaging: conversation targets, mention tokens, coalesced DM notifications | Accepted |
 | 026 | Exports on a shared volume, refresh rotation leeway, catch-up on every connect | Accepted (refines ADR-006, ADR-024) |
+| 027 | Content-Security-Policy without nonces; themes via next-themes | Accepted |
 
 ---
 
@@ -442,3 +443,25 @@ Phase 6 adds PDF transcript exports that must be downloadable for 24 hours throu
 - Exports need a persistent volume next to the database volume. It isn't backed up; the files are disposable.
 - A token stolen and replayed within 30 seconds of its legitimate rotation would get a session. That window is accepted for reliability, matching common identity providers' reuse intervals.
 - A page load costs one extra round of GETs shortly after the socket connects.
+
+## ADR-027: Content-Security-Policy without nonces; themes via next-themes
+- **Status:** Accepted
+- **Date:** 2026-10-14
+
+### Context
+NFR-SEC-07 requires a Content-Security-Policy, and NFR-UX-03 a light theme and a system option next to the default dark one. Next.js injects inline bootstrap scripts. A strict nonce-based policy would need a fresh nonce on every request, which forces dynamic rendering and gives up the prerendered app shell (ADR-022). next-themes also sets the theme class with a small inline script before paint.
+
+### Decision
+- Next.js sends the policy for every page (`next.config.ts`, so it applies through Caddy and on :3000):
+  - `default-src 'self'`
+  - `script-src 'self' 'unsafe-inline'` (plus `'unsafe-eval'` only in development, for React Refresh)
+  - `style-src 'self' 'unsafe-inline'`
+  - images and media from Cloudinary
+  - `connect-src 'self' https://api.cloudinary.com` (direct uploads)
+  - `frame-ancestors 'none'`, `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`
+- Django's JSON API and admin are not covered (they don't render user content as HTML).
+- Themes: next-themes with `attribute="class"`, dark by default, plus light and "match system", chosen from the account menu and remembered per browser. Colours come from CSS variables; hard-coded accent text colours have light/dark pairs.
+
+### Consequences
+- Scripts from other origins, plugins, framing, `<base>` hijacking and off-site form posts are blocked. Inline script injection is not blocked by CSP, so XSS prevention keeps relying on safe rendering (react-markdown without raw HTML, React escaping). Moving to nonces is possible later if rendering becomes dynamic anyway.
+- E2E watches for CSP violations during real flows, the production rehearsal checks the header (and that it has no `'unsafe-eval'`), and the accessibility checks run in light mode too.

@@ -10,7 +10,7 @@ from typing import Any, cast
 
 from django.contrib.postgres.search import SearchQuery
 from django.db import IntegrityError, transaction
-from django.db.models import Count, F, Min, Prefetch, Q
+from django.db.models import Count, Exists, F, Min, OuterRef, Prefetch, Q
 from django.utils import timezone
 from rest_framework import exceptions
 
@@ -47,10 +47,17 @@ MAX_REACTION_EMOJIS = 20
 
 def with_relations(qs: Any) -> Any:
     """Everything MessageSerializer needs, in a fixed number of queries."""
-    return qs.select_related("author", "reply_to__author").prefetch_related(
-        "attachments",
-        "reply_to__attachments",
-        Prefetch("mentions", queryset=Mention.objects.select_related("user", "role")),
+    return (
+        qs.select_related("author", "reply_to__author")
+        .annotate(
+            reply_has_attachments=Exists(
+                Attachment.objects.filter(message_id=OuterRef("reply_to_id"))
+            )
+        )
+        .prefetch_related(
+            "attachments",
+            Prefetch("mentions", queryset=Mention.objects.select_related("user", "role")),
+        )
     )
 
 
@@ -82,9 +89,10 @@ def serialize(messages: list[Message], user: User | None) -> list[dict[str, Any]
     from apps.polls.services import summaries as poll_summaries
 
     ids = [m.pk for m in messages]
+    poll_ids = [m.pk for m in messages if m.type == Message.Type.POLL]
     context = {
-        "reactions": reaction_summaries(ids, user),
-        "polls": poll_summaries(ids, user),
+        "reactions": reaction_summaries(ids, user) if ids else {},
+        "polls": poll_summaries(poll_ids, user) if poll_ids else {},
     }
     return list(MessageSerializer(messages, many=True, context=context).data)
 

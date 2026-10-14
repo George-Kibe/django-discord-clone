@@ -190,3 +190,25 @@ def test_channel_list_query_count(client_for, user, server, django_assert_max_nu
         client.post(chans, {"name": f"c{i}"})
     with django_assert_max_num_queries(6):
         assert len(client.get(chans).json()) == 11
+
+
+def test_reorder_categories(client_for, user, make_user, server, join):
+    from apps.chat_channels.models import Category
+
+    client = client_for(user)
+    url = reverse("server-categories", args=[server.pk])
+    for name in ("Study", "Fun"):
+        assert client.post(url, {"name": name}, format="json").status_code == 201
+    ids = list(
+        Category.objects.filter(server=server).order_by("position").values_list("pk", flat=True)
+    )
+    reordered = [str(i) for i in reversed(ids)]
+    reorder = reverse("server-categories-reorder", args=[server.pk])
+    response = client.patch(reorder, {"category_ids": reordered}, format="json")
+    assert response.status_code == 200
+    assert [c["id"] for c in response.json()] == reordered
+    assert client.patch(reorder, {"category_ids": reordered[:1]}, format="json").status_code == 400
+    member = make_user()
+    join(server, member)
+    denied = client_for(member).patch(reorder, {"category_ids": reordered}, format="json")
+    assert denied.status_code == 403

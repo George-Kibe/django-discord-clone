@@ -61,3 +61,22 @@ async def test_unknown_frame_closes_with_4400():
     await communicator.receive_json_from()
     await communicator.send_json_to({"type": "nope"})
     assert await communicator.receive_output() == {"type": "websocket.close", "code": 4400}
+
+
+async def test_connections_carry_the_proxy_request_id():
+    from apps.core.request_id import get_request_id
+    from apps.realtime.middleware import JWTCookieAuthMiddleware
+
+    seen = {}
+
+    async def inner(scope, receive, send):
+        seen["scope"] = scope["request_id"]
+        seen["var"] = get_request_id()
+
+    middleware = JWTCookieAuthMiddleware(inner)
+    await middleware(
+        {"type": "websocket", "headers": [(b"x-request-id", b"abcdef123456")]}, None, None
+    )
+    assert seen == {"scope": "abcdef123456", "var": "abcdef123456"}
+    await middleware({"type": "websocket", "headers": []}, None, None)
+    assert len(seen["var"]) == 32  # a fresh one

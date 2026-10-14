@@ -58,10 +58,11 @@ export function DangerTab({ server }: { server: ServerDetail }) {
       await api.DELETE("/api/v1/servers/{server_id}", {
         params: { path: { server_id: server.id } },
       });
-      queryClient.removeQueries({ queryKey: keys.server(server.id) });
-      await queryClient.invalidateQueries({ queryKey: keys.servers, exact: true });
       toast.success("Server deleted");
-      router.push("/channels/me");
+      // Leave first: dropping the server's cache unmounts this tab, and the page is gone anyway.
+      router.replace("/channels/me");
+      queryClient.removeQueries({ queryKey: keys.server(server.id) });
+      void queryClient.invalidateQueries({ queryKey: keys.servers, exact: true });
     } catch (e) {
       fail(e);
     }

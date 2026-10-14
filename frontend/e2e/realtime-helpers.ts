@@ -23,6 +23,13 @@ export async function apiPost<T>(page: Page, path: string, data: unknown = {}): 
   return (body ? JSON.parse(body) : undefined) as T;
 }
 
+export async function apiPut(page: Page, path: string) {
+  const response = await page.request.put(path, {
+    headers: { "X-CSRFToken": await csrf(page), Origin: new URL(page.url()).origin },
+  });
+  expect(response.ok(), `${path}: ${response.status()}`).toBe(true);
+}
+
 export async function newUser(browser: Browser, prefix: string) {
   const context = await browser.newContext();
   const page = await context.newPage();
@@ -44,7 +51,14 @@ export async function sharedServer(owner: Page, guest: Page, name: string) {
   await guest.goto(url);
   await expect(live(owner, "channel-title")).toHaveText("general");
   await expect(live(guest, "channel-title")).toHaveText("general");
+  await realtimeReady(owner);
+  await realtimeReady(guest);
   return { serverId: server.id, generalId: general.id, url };
+}
+
+/** Waits until the page's gateway connection is subscribed (after `ready`), so no live event is missed. */
+export async function realtimeReady(page: Page) {
+  await expect(page.locator("html")).toHaveAttribute("data-realtime", "open", { timeout: 20_000 });
 }
 
 export async function send(page: Page, text: string) {

@@ -20,8 +20,9 @@ SIGNING_SALT = "exports.download"
 
 
 def start(target: Target, *, date_from: Any = None, date_to: Any = None) -> ExportJob:
-    """Channels need EXPORT_TRANSCRIPTS (and history); DM participants can always export."""
-    if target.channel is not None:
+    """FR-EXP-01: in channels, Manage Messages or Export Transcripts (plus history); DM
+    participants can always export."""
+    if target.channel is not None and not target.has(Perm.MANAGE_MESSAGES):
         target.require(Perm.EXPORT_TRANSCRIPTS)
     target.require(Perm.READ_MESSAGE_HISTORY)
     if date_from and date_to and date_from > date_to:

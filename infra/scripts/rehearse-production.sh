@@ -93,6 +93,10 @@ step "HTTPS, security headers and production settings"
 headers="$(curl -ksSI "${base}/")"
 grep -qi '^strict-transport-security: max-age=86400; includeSubDomains' <<<"$headers" && pass "HSTS on the frontend"
 grep -qi '^x-content-type-options: nosniff' <<<"$headers" && pass "nosniff"
+# NFR-SEC-07: production CSP (no 'unsafe-eval' outside development).
+csp=$(grep -i '^content-security-policy:' <<<"$headers" || true)
+grep -q "frame-ancestors 'none'" <<<"$csp" && pass "Content-Security-Policy" || fail "CSP missing"
+grep -q "unsafe-eval" <<<"$csp" && fail "CSP allows unsafe-eval in production" || pass "CSP without unsafe-eval"
 grep -qi '^server:' <<<"$headers" && fail "Server header leaked" || pass "no Server header"
 grep -qi '^x-powered-by' <<<"$headers" && fail "X-Powered-By leaked" || pass "no X-Powered-By"
 code="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:8443/" || true)"

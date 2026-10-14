@@ -118,3 +118,15 @@ def test_expired_files_are_deleted(
     token = signing.dumps({"export": job_id, "user": str(user.pk)}, salt="exports.download")
     gone = client_for(user).get(reverse("export-download", args=[job_id]) + f"?token={token}")
     assert gone.status_code == 404
+
+
+def test_manage_messages_is_enough_to_export(client_for, member, server, channel):
+    """FR-EXP-01 names Manage Messages; Export Transcripts alone also works."""
+    from apps.core.permissions import Perm
+    from apps.servers.models import Role
+
+    role = Role.objects.create(
+        server=server, name="Janitor", position=1, permissions=int(Perm.MANAGE_MESSAGES)
+    )
+    member.memberships.get(server=server).roles.add(role)
+    assert start(client_for(member), channel_id=str(channel.pk)).status_code == 202
